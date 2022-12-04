@@ -23,13 +23,13 @@ public class Day04 : BaseDay
         var lineInputs = _input.Split("\n");
         var includedPairs = 0;
 
-        //18-41,17-40
         var pairs = lineInputs.Select(x => GetPairFromInput(x)).ToList();
 
         for (int i = 0; i < pairs.Count; i++)
         {
             var pair = pairs[i];
-            if (SectionWithinSecond(pair.First, pair.Second) || SectionWithinSecond(pair.Second, pair.First))
+            if (SectionFullyWithinTheOther(pair.First, pair.Second) ||
+                SectionFullyWithinTheOther(pair.Second, pair.First))
             {
                 includedPairs++;
             }
@@ -38,14 +38,14 @@ public class Day04 : BaseDay
         return new(includedPairs.ToString());
     }
 
-    private void OutputPair(Pair pair)
-    {
-        Console.WriteLine($"{pair.First.Start}-{pair.First.End} === {pair.Second.Start}-{pair.Second.End}");
-    }
-
-    private bool SectionWithinSecond(Section one, Section second)
+    private bool SectionFullyWithinTheOther(Section one, Section second)
     {
         return one.Start >= second.Start && one.End <= second.End;
+    }
+
+    private bool SectionPartiallyWithinTheOther(Section one, Section second)
+    {
+        return one.End >= second.Start;
     }
 
     private Pair GetPairFromInput(string input)
@@ -63,9 +63,22 @@ public class Day04 : BaseDay
 
     public override ValueTask<string> Solve_2()
     {
+        // process the input string
         var lineInputs = _input.Split("\n");
-        var score = 0;
+        var partialllyIncludedPair = 0;
 
-        return new(score.ToString());
+        var pairs = lineInputs.Select(x => GetPairFromInput(x)).ToList();
+
+        for (int i = 0; i < pairs.Count; i++)
+        {
+            var pair = pairs[i];
+            if (SectionPartiallyWithinTheOther(pair.First, pair.Second) &&
+                SectionPartiallyWithinTheOther(pair.Second, pair.First))
+            {
+                partialllyIncludedPair++;
+            }
+        }
+
+        return new(partialllyIncludedPair.ToString());
     }
 }
