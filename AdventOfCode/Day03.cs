@@ -1,3 +1,6 @@
+using System.Linq.Expressions;
+using AdventOfCode.Utils;
+
 namespace AdventOfCode;
 
 public class Day03 : BaseDay
@@ -15,8 +18,6 @@ public class Day03 : BaseDay
         var lineInputs = _input.Split("\n");
         var score = 0;
 
-        var scores = new List<int>();
-
         for (var i = 0; i < lineInputs.Length; i++)
         {
             var rucksackContent = lineInputs[i];
@@ -28,8 +29,6 @@ public class Day03 : BaseDay
             {
                 if (rucksackPartTwo.Contains(rucksackPartOne[j]))
                 {
-                    var thisRucksackScore = GetCharacterPriority(rucksackPartOne[j]);
-                    scores.Add(thisRucksackScore);
                     score += GetCharacterPriority(rucksackPartOne[j]);
                     break;
                 }
@@ -49,9 +48,57 @@ public class Day03 : BaseDay
         return ((int)c) - 96;
     }
 
-
     public override ValueTask<string> Solve_2()
     {
-        return new($"Solution to {ClassPrefix} {CalculateIndex()}, part 2");
+        var lineInputs = _input.Split("\n");
+        var score = 0;
+
+        var groupsCount = lineInputs.Length / 3;
+
+        for (var i = 0; i < groupsCount; i++)
+        {
+            var groupItemOccurrenceCounter = new Dictionary<char, int>();
+
+            var knapsackOne = lineInputs[i * 3];
+            var knapsackTwo = lineInputs[i * 3 + 1];
+            var knapsackThree = lineInputs[i * 3 + 2];
+
+            ProcessKnapsackToCounter(knapsackOne, groupItemOccurrenceCounter);
+            ProcessKnapsackToCounter(knapsackTwo, groupItemOccurrenceCounter);
+            ProcessKnapsackToCounter(knapsackThree, groupItemOccurrenceCounter);
+
+            var itemOccuredInAllKnapsacks = groupItemOccurrenceCounter.FirstOrDefault(x => x.Value == 3);
+
+            score += GetCharacterPriority(itemOccuredInAllKnapsacks.Key);
+        }
+
+        return new(score.ToString());
+    }
+
+    private void ProcessKnapsackToCounter(string knapsack, Dictionary<char, int> counter)
+    {
+        // first create a unique list of all the item types in the current knapsack as we don't want to count
+        // items that appear multiple times in the same knapsack.
+        // We are only interested in item type occurrences across the 3 knapsacks in a group
+        var uniqueKnapsack = "";
+        foreach (var item in knapsack)
+        {
+            if (!uniqueKnapsack.Contains(item))
+            {
+                uniqueKnapsack += item;
+            }
+        }
+
+        foreach (var item in uniqueKnapsack)
+        {
+            if (counter.ContainsKey(item))
+            {
+                counter[item] += 1;
+            }
+            else
+            {
+                counter[item] = 1;
+            }
+        }
     }
 }
