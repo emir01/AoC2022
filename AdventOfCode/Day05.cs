@@ -84,6 +84,69 @@ namespace AdventOfCode
             return new(topCrates);
         }
 
+
+        public override ValueTask<string> Solve_2()
+        {
+            /*
+             *   === Part 2 ====
+             *   Will use the same setup and will only differ in the execution of the instructions.
+             *   We will pick up X Crates but put them back in the same order
+             * 
+             */
+
+            // process the input string
+            var lineInputs = _input.Split("\n");
+            var topCrates = "";
+
+            /*
+             *
+             *  1. Build a Data Structure that will hold the information of the current Stacks and the Instructions 
+             * 
+             */
+
+            var supplyProblem = CreateSupplyProblem(lineInputs);
+
+            /*
+             *
+             * 2. Solve the Supply Problem
+             * 
+             */
+
+            foreach (var instruction in supplyProblem.Instructions)
+            {
+                // for this solve we will use a temp stack and first store all the items there
+
+                var tempStack = new Stack<string>();
+                for (var j = 0; j < instruction.CratesCount; j++)
+                {
+                    tempStack.Push(supplyProblem.Stacks[instruction.FromStack - 1].Pop());
+                }
+
+                foreach (var item in tempStack)
+                {
+                    supplyProblem.Stacks[instruction.ToStack - 1].Push(item);
+                }
+            }
+
+            /*
+             *
+             * 3. Extract Results from the Current Stacks
+             * 
+             */
+
+            foreach (var supplyProblemStack in supplyProblem.Stacks)
+            {
+                if (supplyProblemStack.TryPop(out var popped))
+                {
+                    topCrates += popped;
+                }
+            }
+
+            Console.WriteLine($"Final Result: {topCrates}");
+
+            return new(topCrates);
+        }
+
         private SupplyProblem CreateSupplyProblem(string[] lineInputs)
         {
             SupplyProblem supplyProblem = new SupplyProblem();
@@ -157,17 +220,6 @@ namespace AdventOfCode
 
             Console.WriteLine($"Empty Line Index:{emptyLineIndex}");
             return emptyLineIndex;
-        }
-
-
-        public override ValueTask<string> Solve_2()
-        {
-            // process the input string
-            var lineInputs = _input.Split("\n");
-            var score = 0;
-
-
-            return new(score.ToString());
         }
     }
 }
