@@ -29,14 +29,18 @@ namespace AdventOfCode
 
         public override ValueTask<string> Solve_2()
         {
-            var logger = new LogWrapper();
-            
             // process the input string
-            var score = "";
+            var logger = new LogWrapper();
+
+            var markerIndex = 0;
 
             logger.WriteLine("=======  PART 2 =======");
 
-            return new(score);
+            logger.WriteLine(_input);
+
+            markerIndex = FindIndexForUniqueLengthMarker(_input, 14, logger);
+
+            return new(markerIndex.ToString());
         }
 
         private int FindIndexForUniqueLengthMarker(string input, int markerLength, LogWrapper logger)
@@ -47,7 +51,7 @@ namespace AdventOfCode
             for (var i = 0; i < input.Length; i++)
             {
                 tempString += input[i];
-                if (tempString.Length > 4)
+                if (tempString.Length > markerLength)
                 {
                     tempString = tempString.Substring(1, tempString.Length - 1);
                 }
