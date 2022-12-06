@@ -38,8 +38,11 @@ namespace AdventOfCode
         public override ValueTask<string> Solve_1()
         {
             // process the input string
+            var logger = new LogWrapper(false);
             var lineInputs = _input.Split("\n");
             var topCrates = "";
+
+            logger.WriteLine("=======  PART 1 =======");
 
             /*
              *
@@ -47,7 +50,7 @@ namespace AdventOfCode
              * 
              */
 
-            var supplyProblem = CreateSupplyProblem(lineInputs);
+            var supplyProblem = CreateSupplyProblem(lineInputs, logger);
 
             /*
              *
@@ -79,7 +82,7 @@ namespace AdventOfCode
                 }
             }
 
-            Console.WriteLine($"Final Result: {topCrates}");
+            logger.WriteLine($"Final Result: {topCrates}");
 
             return new(topCrates);
         }
@@ -91,20 +94,26 @@ namespace AdventOfCode
              *   === Part 2 ====
              *   Will use the same setup and will only differ in the execution of the instructions.
              *   We will pick up X Crates but put them back in the same order
+             *
+             *   todo: We can potentially see about not having to create the SupplyProblem again as it is the same. 
              * 
              */
 
+            var logger = new LogWrapper(false);
             // process the input string
             var lineInputs = _input.Split("\n");
             var topCrates = "";
 
+            logger.WriteLine("=======  PART 2 =======");
+
             /*
              *
-             *  1. Build a Data Structure that will hold the information of the current Stacks and the Instructions 
+             *  1. Build a Data Structure that will hold the information of the current Stacks and the Instructions
+             * 
              * 
              */
 
-            var supplyProblem = CreateSupplyProblem(lineInputs);
+            var supplyProblem = CreateSupplyProblem(lineInputs, logger);
 
             /*
              *
@@ -142,28 +151,28 @@ namespace AdventOfCode
                 }
             }
 
-            Console.WriteLine($"Final Result: {topCrates}");
+            logger.WriteLine($"Final Result: {topCrates}");
 
             return new(topCrates);
         }
 
-        private SupplyProblem CreateSupplyProblem(string[] lineInputs)
+        private SupplyProblem CreateSupplyProblem(string[] lineInputs, LogWrapper logWrapper)
         {
             SupplyProblem supplyProblem = new SupplyProblem();
 
             // Try to find the empty line and read the stacks from top to bottom?
-            var emptyLineIndex = FindEmptyLine(lineInputs);
+            var emptyLineIndex = FindEmptyLine(lineInputs, logWrapper);
 
             // Get the line with the stack numbers and process to figure out how many Stacks we have
-            supplyProblem.Stacks = ParseStacks(lineInputs, emptyLineIndex);
+            supplyProblem.Stacks = ParseStacks(lineInputs, emptyLineIndex, logWrapper);
 
             // Read the Instructions
-            supplyProblem.Instructions = ParseInstructions(lineInputs, emptyLineIndex);
+            supplyProblem.Instructions = ParseInstructions(lineInputs, emptyLineIndex, logWrapper);
 
             return supplyProblem;
         }
 
-        private static List<Instruction> ParseInstructions(string[] lineInputs, int emptyLineIndex)
+        private static List<Instruction> ParseInstructions(string[] lineInputs, int emptyLineIndex, LogWrapper logger)
         {
             List<Instruction> instructions =
                 lineInputs.Skip(emptyLineIndex + 1).Select(
@@ -172,20 +181,20 @@ namespace AdventOfCode
 
             foreach (var instruction in instructions)
             {
-                Console.WriteLine(JsonSerializer.Serialize(instruction));
+                logger.WriteLine(JsonSerializer.Serialize(instruction));
             }
 
             return instructions;
         }
 
-        private static List<Stack<string>> ParseStacks(string[] lineInputs, int emptyLineIndex)
+        private static List<Stack<string>> ParseStacks(string[] lineInputs, int emptyLineIndex, LogWrapper logger)
         {
             var stackIndexLine = lineInputs[emptyLineIndex - 1];
             var stackIndexValues = stackIndexLine.Split(" ").Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
 
             // Create our stacks and start reading from the bottom up 
 
-            Console.WriteLine($"Creating A List of {stackIndexValues.Count} Stacks");
+            logger.WriteLine($"Creating A List of {stackIndexValues.Count} Stacks");
             List<Stack<string>> crateStacks =
                 Enumerable.Range(1, stackIndexValues.Count).Select(i => new Stack<string>()).ToList();
 
@@ -193,13 +202,13 @@ namespace AdventOfCode
             {
                 var stacksLine = lineInputs[i].Split(" ").ToList().ReplaceConsecutiveEmptyStringsInList(4);
 
-                Console.WriteLine("Current Layout Line: " + JsonSerializer.Serialize(stacksLine));
+                logger.WriteLine("Current Layout Line: " + JsonSerializer.Serialize(stacksLine));
 
                 for (int j = 0; j < crateStacks.Count; j++)
                 {
                     if (!string.IsNullOrWhiteSpace(stacksLine[j]))
                     {
-                        Console.WriteLine($"Adding {stacksLine[j]} to Crate Stack {j}");
+                        logger.WriteLine($"Adding {stacksLine[j]} to Crate Stack {j}");
                         crateStacks[j].Push(stacksLine[j][1].ToString());
                     }
                 }
@@ -208,7 +217,7 @@ namespace AdventOfCode
             return crateStacks;
         }
 
-        private static int FindEmptyLine(string[] lineInputs)
+        private static int FindEmptyLine(string[] lineInputs, LogWrapper logger)
         {
             var emptyLineIndex = 0;
             var currentLine = lineInputs[emptyLineIndex];
@@ -218,7 +227,7 @@ namespace AdventOfCode
                 currentLine = lineInputs[emptyLineIndex];
             }
 
-            Console.WriteLine($"Empty Line Index:{emptyLineIndex}");
+            logger.WriteLine($"Empty Line Index:{emptyLineIndex}");
             return emptyLineIndex;
         }
     }
