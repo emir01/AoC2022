@@ -14,7 +14,7 @@ namespace AdventOfCode
         public override ValueTask<string> Solve_1()
         {
             // process the input string
-            var logger = new LogWrapper();
+            var logger = new LogWrapper(false);
 
             var markerIndex = 0;
 
@@ -30,7 +30,7 @@ namespace AdventOfCode
         public override ValueTask<string> Solve_2()
         {
             // process the input string
-            var logger = new LogWrapper();
+            var logger = new LogWrapper(false);
 
             var markerIndex = 0;
 
