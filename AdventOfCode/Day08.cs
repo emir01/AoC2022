@@ -1,15 +1,53 @@
-using System.ComponentModel;
 using System.Data;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Xml.Schema;
+using System.Xml.XPath;
 using AdventOfCode.Utils;
 
 namespace AdventOfCode;
 
 public class Day08 : BaseDay
 {
-    private readonly string _input;
+    /// <summary>
+    /// Small utility class to keep track of visible trees and some of their attributes. 
+    /// </summary>
+    private class Tree
+    {
+        public int X { get; set; }
+        public int Y { get; set; }
+        public int Height { get; set; }
 
+        public TreeSurroudings Surroudings { get; set; }
+    }
+
+
+    private class TreeSurroudings
+    {
+        public (int west, int north, int east, int south) MaxTreesInDirection { get; set; }
+
+        public (int x, int y) WestTree { get; set; }
+        public (int x, int y) NorthTree { get; set; }
+        public (int x, int y) EastTree { get; set; }
+        public (int x, int y) SouthTree { get; set; }
+
+        public void SetMaxTreeValueInDirections(int maxEast, int maxSouth, int maxWest, int maxNorth)
+        {
+            MaxTreesInDirection = (maxWest, maxNorth, maxEast, maxSouth);
+        }
+    }
+
+    private class TreeScanResults
+    {
+        public int VisibleTrees { get; set; }
+
+        public List<Tree> OptimalInternalTrees { get; set; }
+
+        public TreeScanResults()
+        {
+            OptimalInternalTrees = new List<Tree>();
+        }
+    }
+
+    private readonly string _input;
     private readonly List<string> _lines;
 
     private int rows;
@@ -42,28 +80,58 @@ public class Day08 : BaseDay
     {
         // process the input string
         var logger = new LogWrapper(false);
-        var numberOfVisibleTrees = 0;
 
         logger.WriteLine("=======  PART 1 =======");
 
-        numberOfVisibleTrees = rows * 2 + ((columns * 2) - 4);
+        var results = ScanTrees(logger);
 
-        logger.WriteLine($"Trees visible on Edge: {numberOfVisibleTrees}");
+        return new(results.VisibleTrees.ToString());
+    }
 
-        // iterate each 
+    public override ValueTask<string> Solve_2()
+    {
+        // process the input string
+        // process the input string
+        var logger = new LogWrapper(false);
+
+        logger.WriteLine("=======  PART 2 =======");
+
+        var results = ScanTrees(logger);
+
+        return new(results.VisibleTrees.ToString());
+    }
+
+    private TreeScanResults ScanTrees(LogWrapper logger)
+    {
+        var numberOfVisibleTreesOnEdges = rows * 2 + ((columns * 2) - 4);
+        TreeScanResults results = new TreeScanResults()
+        {
+            VisibleTrees = numberOfVisibleTreesOnEdges
+        };
+
+        logger.WriteLine($"Trees visible on Edge: {results.VisibleTrees}");
+
         for (int i = 1; i < rows - 1; i++)
         {
             for (int j = 1; j < columns - 1; j++)
             {
                 var currentTree = trees[i, j];
+
+                var treeSurroundings = GetTreeSurroundings(i, j);
                 (int west, int north, int east, int south) maxTreesInDirection =
-                    GetMaxTreesInDirections(i, j);
+                    treeSurroundings.MaxTreesInDirection;
 
                 // check if there is at least one direction where the biggest tree is smaller than the current tree
                 if (maxTreesInDirection.east < currentTree || maxTreesInDirection.west < currentTree ||
                     maxTreesInDirection.south < currentTree || maxTreesInDirection.north < currentTree)
                 {
-                    numberOfVisibleTrees++;
+                    results.VisibleTrees++;
+
+                    results.OptimalInternalTrees.Add(new Tree
+                    {
+                        Height = currentTree, X = i, Y = j, Surroudings = treeSurroundings
+                    });
+
                     logger.WriteLine(
                         $"Tree at [{i},{j}] with height {currentTree} is visible with max directions: " +
                         $"{maxTreesInDirection.west}, {maxTreesInDirection.north}, {maxTreesInDirection.east}, {maxTreesInDirection.south}");
@@ -71,19 +139,23 @@ public class Day08 : BaseDay
             }
         }
 
-        return new(numberOfVisibleTrees.ToString());
+        return results;
     }
 
 
     // Brute force solution with for loops
-    private (int west, int north, int east, int south) GetMaxTreesInDirections(int currentTreeX,
+    private TreeSurroudings GetTreeSurroundings(int currentTreeX,
         int currentTreeY)
     {
-        (int west, int north, int east, int south) result = (0, 0, 0, 0);
+        var result = new TreeSurroudings();
 
-        // check east/west
+        // check east/west and keep track of the Max Tree Index for the Current Tree
+        // Can be used for calculating Scenic Scores? 
         int maxWest = 0,
             maxEast = 0;
+
+        (int, int) maxWestCords = (0, 0);
+        (int, int) maxEastCords = (0, 0);
 
         for (var j = 0; j < columns; j++)
         {
@@ -93,6 +165,7 @@ public class Day08 : BaseDay
                 if (trees[currentTreeX, j] > maxWest)
                 {
                     maxWest = trees[currentTreeX, j];
+                    maxWestCords = (currentTreeX, j);
                 }
             }
 
@@ -101,12 +174,16 @@ public class Day08 : BaseDay
                 if (trees[currentTreeX, j] > maxEast)
                 {
                     maxEast = trees[currentTreeX, j];
+                    maxEastCords = (currentTreeX, j);
                 }
             }
         }
 
         int maxNorth = 0,
             maxSouth = 0;
+
+        (int, int) maxNorthCords = (0, 0);
+        (int, int) maxSouthCords = (0, 0);
 
         for (var i = 0; i < rows; i++)
         {
@@ -116,6 +193,7 @@ public class Day08 : BaseDay
                 if (trees[i, currentTreeY] > maxNorth)
                 {
                     maxNorth = trees[i, currentTreeY];
+                    maxNorthCords = (i, currentTreeY);
                 }
             }
 
@@ -125,27 +203,18 @@ public class Day08 : BaseDay
                 if (trees[i, currentTreeY] > maxSouth)
                 {
                     maxSouth = trees[i, currentTreeY];
+                    maxSouthCords = (i, currentTreeY);
                 }
             }
         }
 
-        result.east = maxEast;
-        result.south = maxSouth;
-        result.west = maxWest;
-        result.north = maxNorth;
+        result.SetMaxTreeValueInDirections(maxEast, maxSouth, maxWest, maxNorth);
+
+        result.EastTree = maxEastCords;
+        result.WestTree = maxWestCords;
+        result.NorthTree = maxNorthCords;
+        result.SouthTree = maxSouthCords;
 
         return result;
-    }
-
-    public override ValueTask<string> Solve_2()
-    {
-        // process the input string
-        var logger = new LogWrapper(false);
-        var size = 0;
-
-        logger.WriteLine("=======  PART 2 =======");
-
-
-        return new(size.ToString());
     }
 }
