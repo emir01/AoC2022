@@ -131,10 +131,6 @@ public class Day07 : BaseDay
 
     private readonly string _input;
 
-    /*
-     *  
-     */
-
     private OsNode _osRoot;
 
     private List<int> _totalFolderSizes;
