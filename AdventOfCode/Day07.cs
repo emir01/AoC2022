@@ -168,7 +168,7 @@ public class Day07 : BaseDay
 
         /*
          *
-         * 2. Calculate Folder Sizes
+         * 3. Calculate Folder Sizes
          * We can do this while also keeping track of the
          * total sizes of folders as we come back from the internal calculations as we visit each folder.
          * Request is to output sum of sizes without folders - not knowing folder names should work for now
@@ -178,8 +178,6 @@ public class Day07 : BaseDay
 
         CalcualteAndTrackFolderNodeSizes(osRoot, totalFolderSizes);
 
-        logger.WriteLine(JsonSerializer.Serialize(totalFolderSizes));
-
         size = totalFolderSizes.Where(x => x <= OsConstants.SizeMaxFolder).Sum();
 
         return new(size.ToString());
@@ -188,12 +186,48 @@ public class Day07 : BaseDay
     public override ValueTask<string> Solve_2()
     {
         // process the input string
-        var logger = new LogWrapper(false);
-        var size = 0;
+        var logger = new LogWrapper();
+        var minFolderSizeToDeleteToUpdate = 0;
 
         logger.WriteLine("=======  PART 2 =======");
 
-        return new(size.ToString());
+        var lines = _input.Split(Constants.NEW_LINE);
+
+        /*
+         *
+         * 1. Parse our Input into Terminal Lines representing the Actions, Output, Data.
+         * 
+         */
+        var terminalLines = lines.Select(x => new TerminalLine().Parse(x)).ToList();
+
+        /*
+         *
+         * 2. Build the OS File Data Structure
+         * 
+         */
+        var osRoot = BuildOsRoot(terminalLines);
+
+        /*
+         *
+         * 3. Calculate Folder Sizes
+         * We can do this while also keeping track of the
+         * total sizes of folders as we come back from the internal calculations as we visit each folder.
+         * Request is to output sum of sizes without folders - not knowing folder names should work for now
+         */
+
+        List<int> totalFolderSizes = new List<int>();
+
+        var currentOsSize = CalcualteAndTrackFolderNodeSizes(osRoot, totalFolderSizes);
+
+        var freeSpace = OsConstants.SizeTotal - currentOsSize;
+        var minNeeded = OsConstants.SizeUpdateNeeded - freeSpace;
+
+        logger.WriteLine($"Min Needed: {minNeeded}");
+        logger.WriteLine(JsonSerializer.Serialize(totalFolderSizes));
+        
+        minFolderSizeToDeleteToUpdate = totalFolderSizes.Where(x => x >= minNeeded).Min();
+
+        return new(minFolderSizeToDeleteToUpdate.ToString());
     }
 
     private int CalcualteAndTrackFolderNodeSizes(OsNode node, List<int> sizes)
