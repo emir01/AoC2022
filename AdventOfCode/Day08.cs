@@ -16,17 +16,23 @@ public class Day08 : BaseDay
 
         public TreeSurroudings Surroudings { get; set; }
 
-        public int GetScenicScore()
+        // now also need to add total rows and columns to calculate visible trees up to edges as
+        // the coordinate for larger trees are going to be -1 -1
+        public int GetScenicScore(int rows, int columns, LogWrapper logWrapper)
         {
-            var treesWest = Surroudings.WestTree.y >= 0 ? Y - Surroudings.WestTree.y : 1;
-            var treesEast = Surroudings.EastTree.y >= 0 ? Surroudings.EastTree.y - Y : 1;
+            var treesWest = Surroudings.WestLargerOrEqual.y >= 0 ? Y - Surroudings.WestLargerOrEqual.y : Y;
+            var treesEast = Surroudings.EastLargerOrEqual.y >= 0
+                ? Surroudings.EastLargerOrEqual.y - Y
+                : columns - Y - 1;
 
-            var treesNorth = Surroudings.NorthTree.x >= 0 ? X - Surroudings.NorthTree.x : 1;
-            var treesSouth = Surroudings.SouthTree.x >= 0 ? Surroudings.SouthTree.x - X : 1;
+            var treesNorth = Surroudings.NorthLargerOrEqual.x >= 0 ? X - Surroudings.NorthLargerOrEqual.x : X;
+            var treesSouth = Surroudings.SouthLargerOrEqual.x >= 0
+                ? Surroudings.SouthLargerOrEqual.x - X
+                : rows - X - 1;
 
             var score = treesEast * treesNorth * treesWest * treesSouth;
 
-            Console.WriteLine(
+            logWrapper.WriteLine(
                 $"Scenic Score Components for Tree [{X}, {Y}]: West: {treesWest}, North: {treesNorth}, East: {treesEast}, South: {treesSouth} for a Score: {score}");
 
             return score;
@@ -38,10 +44,15 @@ public class Day08 : BaseDay
     {
         public (int west, int north, int east, int south) MaxTreesInDirection { get; set; }
 
-        public (int x, int y) WestTree { get; set; }
-        public (int x, int y) NorthTree { get; set; }
-        public (int x, int y) EastTree { get; set; }
-        public (int x, int y) SouthTree { get; set; }
+        public (int x, int y) WestMaxTree { get; set; }
+        public (int x, int y) NorthMaxTree { get; set; }
+        public (int x, int y) EastMaxTree { get; set; }
+        public (int x, int y) SouthMaxTree { get; set; }
+
+        public (int x, int y) WestLargerOrEqual { get; set; }
+        public (int x, int y) NorthLargerOrEqual { get; set; }
+        public (int x, int y) EastLargerOrEqual { get; set; }
+        public (int x, int y) SouthLargerOrEqual { get; set; }
 
         public void SetMaxTreeValueInDirections(int maxEast, int maxSouth, int maxWest, int maxNorth)
         {
@@ -106,14 +117,14 @@ public class Day08 : BaseDay
     public override ValueTask<string> Solve_2()
     {
         // process the input string
-        var logger = new LogWrapper();
+        var logger = new LogWrapper(false);
 
         logger.WriteLine("=======  PART 2 =======");
 
         var results = ScanTrees(logger);
 
         // calculate the scenic score for each optimal tree and get the max score
-        var scenicScores = results.InternalOptimalTrees.Select(x => x.GetScenicScore()).ToList();
+        var scenicScores = results.InternalOptimalTrees.Select(x => x.GetScenicScore(rows, columns, logger)).ToList();
 
         logger.WriteLine(JsonSerializer.Serialize(scenicScores));
 
@@ -136,7 +147,7 @@ public class Day08 : BaseDay
             {
                 var currentTree = trees[i, j];
 
-                var treeSurroundings = GetTreeSurroundings(i, j);
+                var treeSurroundings = GetTreeSurroundings(i, j, currentTree);
                 (int west, int north, int east, int south) maxTreesInDirection =
                     treeSurroundings.MaxTreesInDirection;
 
@@ -146,6 +157,7 @@ public class Day08 : BaseDay
                 {
                     // quick fix to separate between edge and internal optimal trees
                     // after spending time to have this work with edge trees as well.
+
                     if (i != 0 && i < rows - 1 && j > 0 && j < columns - 1)
                     {
                         results.InternalOptimalTrees.Add(new Tree
@@ -173,29 +185,48 @@ public class Day08 : BaseDay
 
 
     private TreeSurroudings GetTreeSurroundings(int currentTreeX,
-        int currentTreeY)
+        int currentTreeY, int currentTreeValue)
     {
         // as we are now scanning all trees currentTreeX and Y could be on the edge
 
         var result = new TreeSurroudings();
 
+        /*
+         * ==== UPDATE ====
+         * 
+         * After making a mistake to count Scenic Score based on the Max Tree in each Direction
+         * now need to add the nearest equal or larger (if exists) node for each tree for which we calculate
+         * surroundings
+         */
+
         // check east/west and keep track of the Max Tree Index for the Current Tree
-        // Can be used for calculating Scenic Scores? 
+        // Can be used for calculating Scenic Scores?
         int maxWest = -1,
             maxEast = -1;
 
+
         (int, int) maxWestCords = (-1, -1);
         (int, int) maxEastCords = (-1, -1);
+
+        (int, int) largerOrEqualWestCords = (-1, -1);
+        (int, int) largerOrEqualEastCords = (-1, -1);
 
         for (var j = 0; j < columns; j++)
         {
             // checking trees west of our current tree
             if (j < currentTreeY)
             {
+                // Check/Track/Set Max
                 if (trees[currentTreeX, j] > maxWest)
                 {
                     maxWest = trees[currentTreeX, j];
                     maxWestCords = (currentTreeX, j);
+                }
+
+                // Check/Track/Set Larger or Equal - Keep setting as we want the nearest when moving west to east
+                if (trees[currentTreeX, j] >= currentTreeValue)
+                {
+                    largerOrEqualWestCords = (currentTreeX, j);
                 }
             }
 
@@ -206,6 +237,12 @@ public class Day08 : BaseDay
                     maxEast = trees[currentTreeX, j];
                     maxEastCords = (currentTreeX, j);
                 }
+
+                // we only want to set the east value once, the nearest one moving west to east
+                if (trees[currentTreeX, j] >= currentTreeValue && largerOrEqualEastCords.Item1 == -1)
+                {
+                    largerOrEqualEastCords = (currentTreeX, j);
+                }
             }
         }
 
@@ -215,15 +252,25 @@ public class Day08 : BaseDay
         (int, int) maxNorthCords = (-1, -1);
         (int, int) maxSouthCords = (-1, -1);
 
+        (int, int) largerOrEqualNorthCords = (-1, -1);
+        (int, int) largerOrEqualSouthCords = (-1, -1);
+
         for (var i = 0; i < rows; i++)
         {
             // checking trees north of our current tree
+
             if (i < currentTreeX)
             {
                 if (trees[i, currentTreeY] > maxNorth)
                 {
                     maxNorth = trees[i, currentTreeY];
                     maxNorthCords = (i, currentTreeY);
+                }
+
+                // keep setting as we get closer to the tree from north to south
+                if (trees[i, currentTreeY] >= currentTreeValue)
+                {
+                    largerOrEqualNorthCords = (i, currentTreeY);
                 }
             }
 
@@ -235,15 +282,30 @@ public class Day08 : BaseDay
                     maxSouth = trees[i, currentTreeY];
                     maxSouthCords = (i, currentTreeY);
                 }
+
+                // set it just the first time once we pass the tree moving north to south.
+                if (trees[i, currentTreeY] >= currentTreeValue && largerOrEqualSouthCords.Item1 == -1)
+                {
+                    largerOrEqualSouthCords = (i, currentTreeY);
+                }
             }
         }
 
+        // Could be moved to be set after each calculations
+        // and refactor calculations in simpler helper methods
         result.SetMaxTreeValueInDirections(maxEast, maxSouth, maxWest, maxNorth);
 
-        result.EastTree = maxEastCords;
-        result.WestTree = maxWestCords;
-        result.NorthTree = maxNorthCords;
-        result.SouthTree = maxSouthCords;
+        result.WestMaxTree = maxWestCords;
+        result.EastMaxTree = maxEastCords;
+
+        result.NorthMaxTree = maxNorthCords;
+        result.SouthMaxTree = maxSouthCords;
+
+        result.WestLargerOrEqual = largerOrEqualWestCords;
+        result.EastLargerOrEqual = largerOrEqualEastCords;
+
+        result.NorthLargerOrEqual = largerOrEqualNorthCords;
+        result.SouthLargerOrEqual = largerOrEqualSouthCords;
 
         return result;
     }
