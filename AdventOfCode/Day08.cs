@@ -1,6 +1,4 @@
-using System.Data;
-using System.Xml.Schema;
-using System.Xml.XPath;
+using System.Text.Json;
 using AdventOfCode.Utils;
 
 namespace AdventOfCode;
@@ -17,6 +15,22 @@ public class Day08 : BaseDay
         public int Height { get; set; }
 
         public TreeSurroudings Surroudings { get; set; }
+
+        public int GetScenicScore()
+        {
+            var treesWest = Surroudings.WestTree.y >= 0 ? Y - Surroudings.WestTree.y : 1;
+            var treesEast = Surroudings.EastTree.y >= 0 ? Surroudings.EastTree.y - Y : 1;
+
+            var treesNorth = Surroudings.NorthTree.x >= 0 ? X - Surroudings.NorthTree.x : 1;
+            var treesSouth = Surroudings.SouthTree.x >= 0 ? Surroudings.SouthTree.x - X : 1;
+
+            var score = treesEast * treesNorth * treesWest * treesSouth;
+
+            Console.WriteLine(
+                $"Scenic Score Components for Tree [{X}, {Y}]: West: {treesWest}, North: {treesNorth}, East: {treesEast}, South: {treesSouth} for a Score: {score}");
+
+            return score;
+        }
     }
 
 
@@ -37,13 +51,13 @@ public class Day08 : BaseDay
 
     private class TreeScanResults
     {
-        public int VisibleTrees { get; set; }
-
-        public List<Tree> OptimalInternalTrees { get; set; }
+        public List<Tree> InternalOptimalTrees { get; set; }
+        public List<Tree> OptimalEdgeTrees { get; set; }
 
         public TreeScanResults()
         {
-            OptimalInternalTrees = new List<Tree>();
+            InternalOptimalTrees = new List<Tree>();
+            OptimalEdgeTrees = new List<Tree>();
         }
     }
 
@@ -81,39 +95,44 @@ public class Day08 : BaseDay
         // process the input string
         var logger = new LogWrapper(false);
 
+
         logger.WriteLine("=======  PART 1 =======");
 
         var results = ScanTrees(logger);
 
-        return new(results.VisibleTrees.ToString());
+        return new((results.InternalOptimalTrees.Count + results.OptimalEdgeTrees.Count).ToString());
     }
 
     public override ValueTask<string> Solve_2()
     {
         // process the input string
-        // process the input string
-        var logger = new LogWrapper(false);
+        var logger = new LogWrapper();
 
         logger.WriteLine("=======  PART 2 =======");
 
         var results = ScanTrees(logger);
 
-        return new(results.VisibleTrees.ToString());
+        // calculate the scenic score for each optimal tree and get the max score
+        var scenicScores = results.InternalOptimalTrees.Select(x => x.GetScenicScore()).ToList();
+
+        logger.WriteLine(JsonSerializer.Serialize(scenicScores));
+
+        return new(scenicScores.Max().ToString());
     }
 
+    /// <summary>
+    /// We need to scan ALL trees - including those in the edges to figure out their surroundings and see
+    /// how much other trees they can see  - to find the Scenic Score
+    /// </summary>
+    /// <param name="logger"></param>
+    /// <returns></returns>
     private TreeScanResults ScanTrees(LogWrapper logger)
     {
-        var numberOfVisibleTreesOnEdges = rows * 2 + ((columns * 2) - 4);
-        TreeScanResults results = new TreeScanResults()
-        {
-            VisibleTrees = numberOfVisibleTreesOnEdges
-        };
+        TreeScanResults results = new TreeScanResults();
 
-        logger.WriteLine($"Trees visible on Edge: {results.VisibleTrees}");
-
-        for (int i = 1; i < rows - 1; i++)
+        for (int i = 0; i < rows; i++)
         {
-            for (int j = 1; j < columns - 1; j++)
+            for (int j = 0; j < columns; j++)
             {
                 var currentTree = trees[i, j];
 
@@ -125,12 +144,22 @@ public class Day08 : BaseDay
                 if (maxTreesInDirection.east < currentTree || maxTreesInDirection.west < currentTree ||
                     maxTreesInDirection.south < currentTree || maxTreesInDirection.north < currentTree)
                 {
-                    results.VisibleTrees++;
-
-                    results.OptimalInternalTrees.Add(new Tree
+                    // quick fix to separate between edge and internal optimal trees
+                    // after spending time to have this work with edge trees as well.
+                    if (i != 0 && i < rows - 1 && j > 0 && j < columns - 1)
                     {
-                        Height = currentTree, X = i, Y = j, Surroudings = treeSurroundings
-                    });
+                        results.InternalOptimalTrees.Add(new Tree
+                        {
+                            Height = currentTree, X = i, Y = j, Surroudings = treeSurroundings
+                        });
+                    }
+                    else
+                    {
+                        results.OptimalEdgeTrees.Add(new Tree
+                        {
+                            Height = currentTree, X = i, Y = j, Surroudings = treeSurroundings
+                        });
+                    }
 
                     logger.WriteLine(
                         $"Tree at [{i},{j}] with height {currentTree} is visible with max directions: " +
@@ -143,19 +172,20 @@ public class Day08 : BaseDay
     }
 
 
-    // Brute force solution with for loops
     private TreeSurroudings GetTreeSurroundings(int currentTreeX,
         int currentTreeY)
     {
+        // as we are now scanning all trees currentTreeX and Y could be on the edge
+
         var result = new TreeSurroudings();
 
         // check east/west and keep track of the Max Tree Index for the Current Tree
         // Can be used for calculating Scenic Scores? 
-        int maxWest = 0,
-            maxEast = 0;
+        int maxWest = -1,
+            maxEast = -1;
 
-        (int, int) maxWestCords = (0, 0);
-        (int, int) maxEastCords = (0, 0);
+        (int, int) maxWestCords = (-1, -1);
+        (int, int) maxEastCords = (-1, -1);
 
         for (var j = 0; j < columns; j++)
         {
@@ -179,11 +209,11 @@ public class Day08 : BaseDay
             }
         }
 
-        int maxNorth = 0,
-            maxSouth = 0;
+        int maxNorth = -1,
+            maxSouth = -1;
 
-        (int, int) maxNorthCords = (0, 0);
-        (int, int) maxSouthCords = (0, 0);
+        (int, int) maxNorthCords = (-1, -1);
+        (int, int) maxSouthCords = (-1, -1);
 
         for (var i = 0; i < rows; i++)
         {
