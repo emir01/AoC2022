@@ -114,7 +114,7 @@ public class Day09 : BaseDay
     private readonly string _input;
     private readonly List<string> _lines;
 
-    private List<Instruction> _instructions = new List<Instruction>();
+    private List<Instruction> _instructions;
 
     public Day09()
     {
@@ -127,16 +127,42 @@ public class Day09 : BaseDay
     public override ValueTask<string> Solve_1()
     {
         // process the input string
-        var result = "";
-        var logger = new LogWrapper(false);
+        var logger = new LogWrapper();
 
         logger.WriteLine("===== PART 1 =====");
 
-        var head = new BridgeLoc(0, 0);
-        var tail = new BridgeLoc(0, 0);
+        var numberOfKnots = 2;
+        var knots = Enumerable.Range(0, numberOfKnots).Select(x => new BridgeLoc(0, 0)).ToList();
 
+        // after moving the head 
+        Dictionary<int, Dictionary<int, bool>> tailVisitedLocations =
+            MoveHeadAndReturnTailLocations(knots, logger);
+
+        // get all marked locations from the dictionary
+        var visitedCount = tailVisitedLocations.SelectMany(x => x.Value.Values).Count();
+
+        logger.WriteLine($"Visited Locations: {visitedCount}");
+
+        return new(visitedCount.ToString());
+    }
+
+    public override ValueTask<string> Solve_2()
+    {
+        // process the input string
+        var result = "";
+
+        var logger = new LogWrapper(false);
+
+        logger.WriteLine("===== PART 2 =====");
+
+        return new(result);
+    }
+
+    private Dictionary<int, Dictionary<int, bool>> MoveHeadAndReturnTailLocations(List<BridgeLoc> knots,
+        LogWrapper logger)
+    {
         // we need a data structure to track visited locations
-        Dictionary<int, Dictionary<int, bool>> visitedLocations = new Dictionary<int, Dictionary<int, bool>>
+        Dictionary<int, Dictionary<int, bool>> tailVisitedLocations = new Dictionary<int, Dictionary<int, bool>>
         {
             // set initial location as visited
             [0] = new() { { 0, true } }
@@ -144,26 +170,32 @@ public class Day09 : BaseDay
 
         foreach (var instruction in _instructions)
         {
+            // break down the instructions
             var breakdown = instruction.Breakdown();
 
             foreach (var stepInstruction in breakdown)
             {
-                stepInstruction.Apply(head);
+                // move the head of the knots
+                stepInstruction.Apply(knots[0]);
 
-                if (UpdateTail(head, tail, logger))
+                var leadKnot = knots[0];
+
+                // move all the other knots based on current knot starting from the head  
+                for (var i = 1; i < knots.Count; i++)
                 {
-                    // tail was moved so we need to track its location
-                    TrackLocation(visitedLocations, tail);
+                    // we update the knots[i] knot and if it moved and is the last know - TAIL we track its location 
+                    if (UpdateNodeBasedOnDifference(leadKnot, knots[i], logger) && i == knots.Count - 1)
+                    {
+                        TrackLocation(tailVisitedLocations, knots[i]);
+                    }
+
+                    // move on to the next knot to move
+                    leadKnot = knots[i];
                 }
             }
         }
 
-        // get all marked locations from the dictionary
-        var visitedCount = visitedLocations.SelectMany(x => x.Value.Values).Count();
-
-        logger.WriteLine($"Visited Locations: {visitedCount}");
-
-        return new(result);
+        return tailVisitedLocations;
     }
 
     private void TrackLocation(Dictionary<int, Dictionary<int, bool>> visitedLocations, BridgeLoc tail)
@@ -190,11 +222,11 @@ public class Day09 : BaseDay
         }
     }
 
-    private bool UpdateTail(BridgeLoc head, BridgeLoc tail, LogWrapper logger)
+    private bool UpdateNodeBasedOnDifference(BridgeLoc leaderNode, BridgeLoc followerNode, LogWrapper logger)
     {
-        (int x, int y ) diff = (head.X - tail.X, head.Y - tail.Y);
+        (int x, int y ) diff = (leaderNode.X - followerNode.X, leaderNode.Y - followerNode.Y);
 
-        //logger.WriteLine($"Coord Differences between head and tail: [{diff.x},{diff.y}]");
+        // logger.WriteLine($"Coord Differences between head and tail: [{diff.x},{diff.y}]");
 
         // we should move the tail
         if (Math.Abs(diff.x) > 1 || Math.Abs(diff.y) > 1)
@@ -224,24 +256,12 @@ public class Day09 : BaseDay
                 }
             }
 
-            tail.X += diff.x;
-            tail.Y += diff.y;
+            followerNode.X += diff.x;
+            followerNode.Y += diff.y;
 
             return true;
         }
 
         return false;
-    }
-
-    public override ValueTask<string> Solve_2()
-    {
-        // process the input string
-        var result = "";
-
-        var logger = new LogWrapper(false);
-
-        logger.WriteLine("===== PART 2 =====");
-
-        return new(result);
     }
 }
