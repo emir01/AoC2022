@@ -10,7 +10,7 @@ public class Day10 : BaseDay
     private readonly string _input;
     private readonly List<string> _lines;
 
-    private static class InstuctionTypes
+    private static class InstuctionCommandTypes
     {
         public static string NOOP = "noop";
         public static string ADDX = "addx";
@@ -21,6 +21,8 @@ public class Day10 : BaseDay
         public string Command { get; set; }
 
         public int? Argument { get; set; }
+
+        public int CyclesLeft { get; set; }
 
         public CpuInstruction Parse(string input)
         {
@@ -67,38 +69,71 @@ public class Day10 : BaseDay
             0, 0, 0, 0, 0, 0
         };
 
+        int instructionPointer = 0;
         int checkCycleIndex = 0;
+
+        List<CpuInstruction> executingLongInstructions = new List<CpuInstruction>();
 
         logger.WriteLine($"Dealing with {_instructions.Count} instructions");
 
-        for (int i = 0; i < _instructions.Count; i++)
+        // Start running the processor
+        while (true)
         {
-            logger.WriteLine($"Running Cycle: {cycle}");
-            // check if we have reached a
-            if (checkCycleIndex < cyclesToCheck.Length - 1 && cycle == cyclesToCheck[checkCycleIndex])
+            cycle++;
+
+            // check if we have reached a cycle for which we need to check strength
+            if (checkCycleIndex < cyclesToCheck.Length && cycle == cyclesToCheck[checkCycleIndex])
             {
-                logger.WriteLine($"Have hit Cycle: {cycle} after {i + 1} instructions");
+                logger.WriteLine($"Have hit Cycle: {cycle} after {instructionPointer} instructions");
                 cyclesToCheckStrengths[checkCycleIndex] = register * cyclesToCheck[checkCycleIndex];
                 checkCycleIndex++;
             }
 
-            var instruction = _instructions[i];
-
-            if (instruction.Command == InstuctionTypes.NOOP)
+            // if we executing adds we look at completing them
+            // todo: This might be an issue if we get to execute multiple instructions per cycle
+            // todo: we might need to use a FIFO queue 
+            if (executingLongInstructions.Any())
             {
-                cycle++;
+                foreach (var executingAdd in executingLongInstructions)
+                {
+                    executingAdd.CyclesLeft--;
+                    if (executingAdd.CyclesLeft == 0)
+                    {
+                        if (executingAdd.Argument != null) register += executingAdd.Argument.Value;
+                    }
+                }
+
+                // remove the ones that are finished
+                executingLongInstructions = executingLongInstructions.Where(x => x.CyclesLeft != 0).ToList();
             }
             else
             {
-                // increasing this by 2 would not work as we will jump the important cycles
-                cycle += 2;
-                if (instruction.Argument != null) register += instruction.Argument.Value;
+                // if we've reached all instructions we need to execute we break;
+                if (instructionPointer == _instructions.Count() && !executingLongInstructions.Any())
+                {
+                    break;
+                }
+
+                var instructionToRun = _instructions[instructionPointer];
+                instructionPointer++;
+
+                if (instructionToRun.Command == InstuctionCommandTypes.ADDX)
+                {
+                    executingLongInstructions.Add(new CpuInstruction()
+                    {
+                        Argument = instructionToRun.Argument,
+                        Command = instructionToRun.Command,
+                        CyclesLeft = 1
+                    });
+                }
             }
         }
 
         logger.WriteLine($"Cycle Strengths: {JsonSerializer.Serialize(cyclesToCheckStrengths)}");
 
-        return new("Part 1");
+        var sum = cyclesToCheckStrengths.Sum();
+
+        return new(sum.ToString());
     }
 
     public override ValueTask<string> Solve_2()
