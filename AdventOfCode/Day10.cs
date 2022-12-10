@@ -39,6 +39,38 @@ public class Day10 : BaseDay
         }
     }
 
+    private class CpuState
+    {
+        public int Cycle { get; set; }
+
+        public List<CpuInstruction> LongRunningInstructions { get; set; }
+
+        public int Register { get; set; }
+
+        public int[] CyclesToCheckStrengths { get; set; }
+
+        public int[] CyclesToCheck { get; set; }
+
+        public int InstructionPointer { get; set; }
+
+        public int CheckCycleIndex { get; set; }
+
+        public CpuState(int[] cyclesToCheck)
+        {
+            Cycle = 0;
+            Register = 1;
+
+            // Cycles to Check
+            CyclesToCheck = cyclesToCheck;
+            CyclesToCheckStrengths = Enumerable.Repeat(0, cyclesToCheck.Length).ToArray();
+
+            InstructionPointer = 0;
+            CheckCycleIndex = 0;
+
+            LongRunningInstructions = new List<CpuInstruction>();
+        }
+    }
+
     private List<CpuInstruction> _instructions;
 
     public Day10()
@@ -56,82 +88,16 @@ public class Day10 : BaseDay
 
         logger.WriteLine("===== PART 1 =====");
 
-        int cycle = 0;
-        int register = 1;
-
         int[] cyclesToCheck =
         {
             20, 60, 100, 140, 180, 220
         };
 
-        int[] cyclesToCheckStrengths =
-        {
-            0, 0, 0, 0, 0, 0
-        };
+        var stateAfterInstructions = RunInstructionsWithCheckCycles(cyclesToCheck, logger);
 
-        int instructionPointer = 0;
-        int checkCycleIndex = 0;
+        logger.WriteLine($"Cycle Strengths: {JsonSerializer.Serialize(stateAfterInstructions.CyclesToCheckStrengths)}");
 
-        List<CpuInstruction> executingLongInstructions = new List<CpuInstruction>();
-
-        logger.WriteLine($"Dealing with {_instructions.Count} instructions");
-
-        // Start running the processor
-        while (true)
-        {
-            cycle++;
-
-            // check if we have reached a cycle for which we need to check strength
-            if (checkCycleIndex < cyclesToCheck.Length && cycle == cyclesToCheck[checkCycleIndex])
-            {
-                logger.WriteLine($"Have hit Cycle: {cycle} after {instructionPointer} instructions");
-                cyclesToCheckStrengths[checkCycleIndex] = register * cyclesToCheck[checkCycleIndex];
-                checkCycleIndex++;
-            }
-
-            // if we executing adds we look at completing them
-            // todo: This might be an issue if we get to execute multiple instructions per cycle
-            // todo: we might need to use a FIFO queue 
-            if (executingLongInstructions.Any())
-            {
-                foreach (var executingAdd in executingLongInstructions)
-                {
-                    executingAdd.CyclesLeft--;
-                    if (executingAdd.CyclesLeft == 0)
-                    {
-                        if (executingAdd.Argument != null) register += executingAdd.Argument.Value;
-                    }
-                }
-
-                // remove the ones that are finished
-                executingLongInstructions = executingLongInstructions.Where(x => x.CyclesLeft != 0).ToList();
-            }
-            else
-            {
-                // if we've reached all instructions we need to execute we break;
-                if (instructionPointer == _instructions.Count() && !executingLongInstructions.Any())
-                {
-                    break;
-                }
-
-                var instructionToRun = _instructions[instructionPointer];
-                instructionPointer++;
-
-                if (instructionToRun.Command == InstuctionCommandTypes.ADDX)
-                {
-                    executingLongInstructions.Add(new CpuInstruction()
-                    {
-                        Argument = instructionToRun.Argument,
-                        Command = instructionToRun.Command,
-                        CyclesLeft = 1
-                    });
-                }
-            }
-        }
-
-        logger.WriteLine($"Cycle Strengths: {JsonSerializer.Serialize(cyclesToCheckStrengths)}");
-
-        var sum = cyclesToCheckStrengths.Sum();
+        var sum = stateAfterInstructions.CyclesToCheckStrengths.Sum();
 
         return new(sum.ToString());
     }
@@ -144,5 +110,71 @@ public class Day10 : BaseDay
         logger.WriteLine("===== PART 2 =====");
 
         return new("Part 2");
+    }
+
+    private CpuState RunInstructionsWithCheckCycles(int[] cyclesToCheck, LogWrapper logger)
+    {
+        CpuState state = new CpuState(cyclesToCheck);
+
+        logger.WriteLine($"Dealing with {_instructions.Count} instructions");
+
+        // Start running the processor
+        while (true)
+        {
+            state.Cycle++;
+
+            // check if we have reached a cycle for which we need to check strength
+            if (state.CheckCycleIndex < state.CyclesToCheck.Length &&
+                state.Cycle == state.CyclesToCheck[state.CheckCycleIndex])
+            {
+                logger.WriteLine($"Have hit Cycle: {state.Cycle} after {state.InstructionPointer} instructions");
+
+                state.CyclesToCheckStrengths[state.CheckCycleIndex] =
+                    state.Register * state.CyclesToCheck[state.CheckCycleIndex];
+
+                state.CheckCycleIndex++;
+            }
+
+            // if we executing adds we look at completing them
+            // todo: This might be an issue if we get to execute multiple instructions per cycle
+            // todo: we might need to use a FIFO queue 
+            if (state.LongRunningInstructions.Any())
+            {
+                foreach (var executingAdd in state.LongRunningInstructions)
+                {
+                    executingAdd.CyclesLeft--;
+                    if (executingAdd.CyclesLeft == 0)
+                    {
+                        if (executingAdd.Argument != null) state.Register += executingAdd.Argument.Value;
+                    }
+                }
+
+                // remove the ones that are finished
+                state.LongRunningInstructions = state.LongRunningInstructions.Where(x => x.CyclesLeft != 0).ToList();
+            }
+            else
+            {
+                // if we've reached all instructions we need to execute we break;
+                if (state.InstructionPointer == _instructions.Count() && !state.LongRunningInstructions.Any())
+                {
+                    break;
+                }
+
+                var instructionToRun = _instructions[state.InstructionPointer];
+                state.InstructionPointer++;
+
+                if (instructionToRun.Command == InstuctionCommandTypes.ADDX)
+                {
+                    state.LongRunningInstructions.Add(new CpuInstruction()
+                    {
+                        Argument = instructionToRun.Argument,
+                        Command = instructionToRun.Command,
+                        CyclesLeft = 1
+                    });
+                }
+            }
+        }
+
+        return state;
     }
 }
