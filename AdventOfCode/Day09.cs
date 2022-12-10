@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using AdventOfCode.Utils;
 using Spectre.Console.Rendering;
 
@@ -127,12 +128,14 @@ public class Day09 : BaseDay
     public override ValueTask<string> Solve_1()
     {
         // process the input string
-        var logger = new LogWrapper();
+        var logger = new LogWrapper(false);
 
         logger.WriteLine("===== PART 1 =====");
 
         var numberOfKnots = 2;
         var knots = Enumerable.Range(0, numberOfKnots).Select(x => new BridgeLoc(0, 0)).ToList();
+
+        logger.WriteLine($"Knot List: {JsonSerializer.Serialize(knots)}");
 
         // after moving the head 
         Dictionary<int, Dictionary<int, bool>> tailVisitedLocations =
@@ -149,13 +152,25 @@ public class Day09 : BaseDay
     public override ValueTask<string> Solve_2()
     {
         // process the input string
-        var result = "";
-
-        var logger = new LogWrapper(false);
+        var logger = new LogWrapper();
 
         logger.WriteLine("===== PART 2 =====");
 
-        return new(result);
+        var numberOfKnots = 10;
+        var knots = Enumerable.Range(0, numberOfKnots).Select(x => new BridgeLoc(0, 0)).ToList();
+
+        logger.WriteLine($"Knot List: {JsonSerializer.Serialize(knots)}");
+
+        // after moving the head 
+        Dictionary<int, Dictionary<int, bool>> tailVisitedLocations =
+            MoveHeadAndReturnTailLocations(knots, logger);
+
+        // get all marked locations from the dictionary
+        var visitedCount = tailVisitedLocations.SelectMany(x => x.Value.Values).Count();
+
+        logger.WriteLine($"Visited Locations: {visitedCount}");
+
+        return new(visitedCount.ToString());
     }
 
     private Dictionary<int, Dictionary<int, bool>> MoveHeadAndReturnTailLocations(List<BridgeLoc> knots,
