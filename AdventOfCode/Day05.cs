@@ -3,31 +3,31 @@ using AdventOfCode.Utils;
 
 namespace AdventOfCode
 {
-    public class Instruction
-    {
-        public int CratesCount { get; set; }
-
-        public int FromStack { get; set; }
-
-        public int ToStack { get; set; }
-
-        public Instruction(List<string> instructionNumbers)
-        {
-            CratesCount = Int32.Parse(instructionNumbers[0]);
-            FromStack = Int32.Parse(instructionNumbers[1]);
-            ToStack = Int32.Parse(instructionNumbers[2]);
-        }
-    }
-
-    public class SupplyProblem
-    {
-        public List<Instruction> Instructions { get; set; }
-
-        public List<Stack<string>> Stacks { get; set; }
-    }
-
     public class Day05 : BaseDay
     {
+        private class Instruction
+        {
+            public int CratesCount { get; set; }
+
+            public int FromStack { get; set; }
+
+            public int ToStack { get; set; }
+
+            public Instruction(List<string> instructionNumbers)
+            {
+                CratesCount = Int32.Parse(instructionNumbers[0]);
+                FromStack = Int32.Parse(instructionNumbers[1]);
+                ToStack = Int32.Parse(instructionNumbers[2]);
+            }
+        }
+
+        private class SupplyProblem
+        {
+            public List<Instruction> Instructions { get; set; }
+
+            public List<Stack<string>> Stacks { get; set; }
+        }
+
         private readonly string _input;
 
         public Day05()
