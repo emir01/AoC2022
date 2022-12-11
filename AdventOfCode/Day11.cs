@@ -127,25 +127,15 @@ public class Day11 : BaseDay
     public override ValueTask<string> Solve_1()
     {
         // process the input string
-        var logger = new LogWrapper(false);
+        var logger = new LogWrapper();
 
         logger.WriteLine("===== PART 1 =====");
 
         ParseMonkeysFromInput(logger);
 
-        // test parsing
-        foreach (var monkey in _monkeys)
-        {
-            logger.WriteLine("===========================");
-            logger.WriteLine($"Monkey: {JsonSerializer.Serialize(monkey)}");
-            logger.WriteLine("===========================");
-        }
-
         PlayRounds(20, 3, logger);
 
         var monkeyInspectsByOrder = _monkeys.Select(x => x.InspectTimes).OrderByDescending(x => x).ToList();
-
-        logger.WriteLine($"Monkey Inspect times: {JsonSerializer.Serialize(monkeyInspectsByOrder)}");
 
         var solution = monkeyInspectsByOrder[0] * monkeyInspectsByOrder[1];
 
@@ -155,13 +145,13 @@ public class Day11 : BaseDay
     public override ValueTask<string> Solve_2()
     {
         // process the input string
-        var logger = new LogWrapper();
+        var logger = new LogWrapper(false);
 
         logger.WriteLine("===== PART 2 =====");
 
         ParseMonkeysFromInput(logger);
 
-        PlayRounds(20, 3, logger);
+        PlayRounds(20, 1, logger);
 
         var monkeyInspectsByOrder = _monkeys.Select(x => x.InspectTimes).OrderByDescending(x => x).ToList();
 
@@ -207,8 +197,11 @@ public class Day11 : BaseDay
 
             foreach (var monkey in _monkeys)
             {
-                logger.WriteLine(
-                    $"Monkey[{monkey.MonkeyIndex}][{monkey.InspectTimes}]: {JsonSerializer.Serialize(monkey.MonkeyItems)}");
+                if (_monkeys.IndexOf(monkey) == 0)
+                {
+                    logger.WriteLine(
+                        $"Monkey[{monkey.MonkeyIndex}][{monkey.InspectTimes}]: {JsonSerializer.Serialize(monkey.MonkeyItems)}");
+                }
             }
         }
     }
