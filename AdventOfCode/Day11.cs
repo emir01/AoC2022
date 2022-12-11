@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text.Json;
 using AdventOfCode.Utils;
 
@@ -205,9 +204,11 @@ public class Day11 : BaseDay
             }
 
             logger.WriteLine($"Monkey state after round {i}");
+
             foreach (var monkey in _monkeys)
             {
-                logger.WriteLine($"Monkey[{monkey.MonkeyIndex}]: {JsonSerializer.Serialize(monkey.MonkeyItems)}");
+                logger.WriteLine(
+                    $"Monkey[{monkey.MonkeyIndex}][{monkey.InspectTimes}]: {JsonSerializer.Serialize(monkey.MonkeyItems)}");
             }
         }
     }
