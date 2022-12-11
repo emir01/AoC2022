@@ -12,11 +12,11 @@ public class Day11 : BaseDay
     private class Monkey
     {
         // The Items the money is holding
-        public Queue<int> MonkeyItems { get; set; }
+        public Queue<long> MonkeyItems { get; set; }
 
         public string[] OperationSegments { get; set; }
 
-        public int Divider { get; set; }
+        public long Divider { get; set; }
 
         public int MonkeyIndexIfTrue { get; set; }
 
@@ -30,7 +30,7 @@ public class Day11 : BaseDay
 
         public Monkey(LogWrapper logger, int monkeyIndex)
         {
-            MonkeyItems = new Queue<int>();
+            MonkeyItems = new Queue<long>();
             _logger = logger;
             MonkeyIndex = monkeyIndex;
             InspectTimes = 0;
@@ -67,11 +67,11 @@ public class Day11 : BaseDay
             MonkeyIndexIfFalse = Int32.Parse(ifFalse.Split(" ").Last().Trim());
         }
 
-        public int InspectItem()
+        public long InspectItem()
         {
             var item = MonkeyItems.Dequeue();
             var itemAfterOperation = ApplyOperation(item);
-            int itemAfterInspect = itemAfterOperation / 3;
+            long itemAfterInspect = itemAfterOperation / 3;
 
             // _logger.WriteLine(
             //     $"Monkey with index:{MonkeyIndex} is inspecting original Item: {item} " +
@@ -83,10 +83,10 @@ public class Day11 : BaseDay
             return itemAfterInspect;
         }
 
-        private int ApplyOperation(int item)
+        private long ApplyOperation(long item)
         {
             var result = item;
-            int argument = OperationSegments[2] == "old" ? item : Int32.Parse(OperationSegments[2]);
+            long argument = OperationSegments[2] == "old" ? item : Int32.Parse(OperationSegments[2]);
 
             switch (OperationSegments[1])
             {
@@ -101,7 +101,7 @@ public class Day11 : BaseDay
             return result;
         }
 
-        public int FindOutToWhichMonkeyToThrow(int inspectValue)
+        public int FindOutToWhichMonkeyToThrow(long inspectValue)
         {
             if (inspectValue % Divider == 0)
             {
@@ -113,11 +113,11 @@ public class Day11 : BaseDay
 
         public bool HasItem()
         {
-            return MonkeyItems.TryPeek(out int _);
+            return MonkeyItems.TryPeek(out long _);
         }
     }
 
-    private List<Monkey> _monkeys = new List<Monkey>();
+    private List<Monkey> _monkeys = new();
 
     public Day11()
     {
