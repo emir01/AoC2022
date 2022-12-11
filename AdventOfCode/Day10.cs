@@ -71,11 +71,17 @@ public class Day10 : BaseDay
         public void UpdateAfterCycle(int cycle, int stateRegister, LogWrapper logger)
         {
             // check what needs to be drawn
-            logger.WriteLine($"At Cycle {cycle} register is Set at: {stateRegister}");
+            logger.WriteLine($"At Cycle {cycle} drawing {cycle - 1} with register set at: {stateRegister}");
 
-            if (stateRegister == cycle || stateRegister + 1 == cycle || stateRegister - 1 == cycle)
+            // as state register does not move up to the higher pixel indexes
+            // we have to compare with a cycle that's mapped from 0, 40
+            var squishedCycle = cycle % 40;
+
+            if (stateRegister == squishedCycle - 1 || stateRegister + 1 == squishedCycle - 1 ||
+                stateRegister - 1 == squishedCycle - 1)
             {
                 logger.WriteLine("DRAWING");
+                // but we still have to set the actual cycle even though we compared with squished
                 Pixels[cycle - 1] = "#";
             }
             else
@@ -161,14 +167,16 @@ public class Day10 : BaseDay
     public override ValueTask<string> Solve_2()
     {
         // process the input string
-        var logger = new LogWrapper();
+        var logger = new LogWrapper(false);
 
         logger.WriteLine("===== PART 2 =====");
 
         var crt = new Crt();
 
         logger.WriteLine($"CRT BEFORE Program Execution");
+
         crt.PrintCrt(logger);
+
         var cpuCyclesEnumerable = RunInstructionsWithCheckCycles(logger);
         foreach (var state in cpuCyclesEnumerable)
         {
@@ -178,7 +186,7 @@ public class Day10 : BaseDay
         logger.WriteLine($"CRT After Program Execution");
         crt.PrintCrt(logger);
 
-        return new("ABCDEFG");
+        return new("EZFPRAKL");
     }
 
     private IEnumerable<CpuState> RunInstructionsWithCheckCycles(LogWrapper logger, int[] cyclesToCheck = null)
