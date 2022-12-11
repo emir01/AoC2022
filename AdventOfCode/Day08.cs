@@ -14,20 +14,20 @@ public class Day08 : BaseDay
         public int Y { get; set; }
         public int Height { get; set; }
 
-        public TreeSurroudings Surroudings { get; set; }
+        public TreeSurroundings Surroundings { get; set; }
 
         // now also need to add total rows and columns to calculate visible trees up to edges as
         // the coordinate for larger trees are going to be -1 -1
         public int GetScenicScore(int rows, int columns, LogWrapper logWrapper)
         {
-            var treesWest = Surroudings.WestLargerOrEqual.y >= 0 ? Y - Surroudings.WestLargerOrEqual.y : Y;
-            var treesEast = Surroudings.EastLargerOrEqual.y >= 0
-                ? Surroudings.EastLargerOrEqual.y - Y
+            var treesWest = Surroundings.WestLargerOrEqual.y >= 0 ? Y - Surroundings.WestLargerOrEqual.y : Y;
+            var treesEast = Surroundings.EastLargerOrEqual.y >= 0
+                ? Surroundings.EastLargerOrEqual.y - Y
                 : columns - Y - 1;
 
-            var treesNorth = Surroudings.NorthLargerOrEqual.x >= 0 ? X - Surroudings.NorthLargerOrEqual.x : X;
-            var treesSouth = Surroudings.SouthLargerOrEqual.x >= 0
-                ? Surroudings.SouthLargerOrEqual.x - X
+            var treesNorth = Surroundings.NorthLargerOrEqual.x >= 0 ? X - Surroundings.NorthLargerOrEqual.x : X;
+            var treesSouth = Surroundings.SouthLargerOrEqual.x >= 0
+                ? Surroundings.SouthLargerOrEqual.x - X
                 : rows - X - 1;
 
             var score = treesEast * treesNorth * treesWest * treesSouth;
@@ -40,7 +40,7 @@ public class Day08 : BaseDay
     }
 
 
-    private class TreeSurroudings
+    private class TreeSurroundings
     {
         public (int west, int north, int east, int south) MaxTreesInDirection { get; set; }
 
@@ -162,14 +162,14 @@ public class Day08 : BaseDay
                     {
                         results.InternalOptimalTrees.Add(new Tree
                         {
-                            Height = currentTree, X = i, Y = j, Surroudings = treeSurroundings
+                            Height = currentTree, X = i, Y = j, Surroundings = treeSurroundings
                         });
                     }
                     else
                     {
                         results.OptimalEdgeTrees.Add(new Tree
                         {
-                            Height = currentTree, X = i, Y = j, Surroudings = treeSurroundings
+                            Height = currentTree, X = i, Y = j, Surroundings = treeSurroundings
                         });
                     }
 
@@ -184,12 +184,12 @@ public class Day08 : BaseDay
     }
 
 
-    private TreeSurroudings GetTreeSurroundings(int currentTreeX,
+    private TreeSurroundings GetTreeSurroundings(int currentTreeX,
         int currentTreeY, int currentTreeValue)
     {
         // as we are now scanning all trees currentTreeX and Y could be on the edge
 
-        var result = new TreeSurroudings();
+        var result = new TreeSurroundings();
 
         /*
          * ==== UPDATE ====
