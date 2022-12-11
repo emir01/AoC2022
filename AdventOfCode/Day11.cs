@@ -67,11 +67,11 @@ public class Day11 : BaseDay
             MonkeyIndexIfFalse = Int32.Parse(ifFalse.Split(" ").Last().Trim());
         }
 
-        public long InspectItem()
+        public long InspectItem(int worryLevelDivider)
         {
             var item = MonkeyItems.Dequeue();
             var itemAfterOperation = ApplyOperation(item);
-            long itemAfterInspect = itemAfterOperation / 3;
+            long itemAfterInspect = itemAfterOperation / worryLevelDivider;
 
             // _logger.WriteLine(
             //     $"Monkey with index:{MonkeyIndex} is inspecting original Item: {item} " +
@@ -128,7 +128,7 @@ public class Day11 : BaseDay
     public override ValueTask<string> Solve_1()
     {
         // process the input string
-        var logger = new LogWrapper();
+        var logger = new LogWrapper(false);
 
         logger.WriteLine("===== PART 1 =====");
 
@@ -142,7 +142,7 @@ public class Day11 : BaseDay
             logger.WriteLine("===========================");
         }
 
-        PlayRounds(20, logger);
+        PlayRounds(20, 3, logger);
 
         var monkeyInspectsByOrder = _monkeys.Select(x => x.InspectTimes).OrderByDescending(x => x).ToList();
 
@@ -153,7 +153,27 @@ public class Day11 : BaseDay
         return new(solution.ToString());
     }
 
-    private void PlayRounds(int rounds, LogWrapper logger)
+    public override ValueTask<string> Solve_2()
+    {
+        // process the input string
+        var logger = new LogWrapper();
+
+        logger.WriteLine("===== PART 2 =====");
+
+        ParseMonkeysFromInput(logger);
+
+        PlayRounds(20, 3, logger);
+
+        var monkeyInspectsByOrder = _monkeys.Select(x => x.InspectTimes).OrderByDescending(x => x).ToList();
+
+        logger.WriteLine($"Monkey Inspect times: {JsonSerializer.Serialize(monkeyInspectsByOrder)}");
+
+        var solution = monkeyInspectsByOrder[0] * monkeyInspectsByOrder[1];
+
+        return new(solution.ToString());
+    }
+
+    private void PlayRounds(int rounds, int worryLevelDivider, LogWrapper logger)
     {
         for (int i = 1; i <= rounds; i++)
         {
@@ -171,7 +191,7 @@ public class Day11 : BaseDay
 
                 while (activeMonkey.HasItem())
                 {
-                    var inspectValue = activeMonkey.InspectItem();
+                    var inspectValue = activeMonkey.InspectItem(worryLevelDivider);
 
                     // logger.WriteLine(
                     //     $"======= Inspected Item with Value : {inspectValue} - Monkey now has Items: {JsonSerializer.Serialize(activeMonkey.MonkeyItems)}");
@@ -196,6 +216,7 @@ public class Day11 : BaseDay
     {
         var monkeyIndex = 0;
         var activeMonkey = new Monkey(logger, monkeyIndex);
+        _monkeys = new List<Monkey>();
         for (int i = 0; i < _lines.Count; i++)
         {
             var activeLine = _lines[i];
@@ -242,15 +263,5 @@ public class Day11 : BaseDay
                 _monkeys.Add(activeMonkey);
             }
         }
-    }
-
-    public override ValueTask<string> Solve_2()
-    {
-        // process the input string
-        var logger = new LogWrapper(false);
-
-        logger.WriteLine("===== PART 2 =====");
-
-        return new("SOL 2");
     }
 }
