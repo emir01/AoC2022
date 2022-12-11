@@ -127,7 +127,7 @@ public class Day11 : BaseDay
     public override ValueTask<string> Solve_1()
     {
         // process the input string
-        var logger = new LogWrapper();
+        var logger = new LogWrapper(false);
 
         logger.WriteLine("===== PART 1 =====");
 
@@ -145,13 +145,13 @@ public class Day11 : BaseDay
     public override ValueTask<string> Solve_2()
     {
         // process the input string
-        var logger = new LogWrapper(false);
+        var logger = new LogWrapper();
 
         logger.WriteLine("===== PART 2 =====");
 
         ParseMonkeysFromInput(logger);
 
-        PlayRounds(20, 1, logger);
+        PlayRounds(5, 1, logger);
 
         var monkeyInspectsByOrder = _monkeys.Select(x => x.InspectTimes).OrderByDescending(x => x).ToList();
 
@@ -176,20 +176,20 @@ public class Day11 : BaseDay
             {
                 var activeMonkey = _monkeys[j];
 
-                //logger.WriteLine($"*** It's the turn of Monkey with Index:{activeMonkey.MonkeyIndex}");
+                logger.WriteLine($"*** It's the turn of Monkey with Index:{activeMonkey.MonkeyIndex}");
 
                 while (activeMonkey.HasItem())
                 {
                     var inspectValue = activeMonkey.InspectItem(worryLevelDivider);
 
-                    // logger.WriteLine(
-                    //     $"======= Inspected Item with Value : {inspectValue} - Monkey now has Items: {JsonSerializer.Serialize(activeMonkey.MonkeyItems)}");
+                    logger.WriteLine(
+                        $"======= Inspected Item with Value : {inspectValue} - Monkey now has Items: {JsonSerializer.Serialize(activeMonkey.MonkeyItems)}");
 
                     var throwToWhichMonkey = activeMonkey.FindOutToWhichMonkeyToThrow(inspectValue);
                     _monkeys[throwToWhichMonkey].MonkeyItems.Enqueue(inspectValue);
 
-                    // logger.WriteLine(
-                    //     $"======= Throwing Inspected Item: {inspectValue} to {throwToWhichMonkey}");
+                    logger.WriteLine(
+                        $"======= Throwing Inspected Item: {inspectValue} to {throwToWhichMonkey}");
                 }
             }
 
@@ -197,11 +197,8 @@ public class Day11 : BaseDay
 
             foreach (var monkey in _monkeys)
             {
-                if (_monkeys.IndexOf(monkey) == 0)
-                {
-                    logger.WriteLine(
-                        $"Monkey[{monkey.MonkeyIndex}][{monkey.InspectTimes}]: {JsonSerializer.Serialize(monkey.MonkeyItems)}");
-                }
+                logger.WriteLine(
+                    $"Monkey[{monkey.MonkeyIndex}][{monkey.InspectTimes}]: {JsonSerializer.Serialize(monkey.MonkeyItems)}");
             }
         }
     }
