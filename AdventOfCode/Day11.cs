@@ -8,6 +8,19 @@ public class Day11 : BaseDay
     private readonly string _input;
     private readonly List<string> _lines;
 
+    private enum OperationType
+    {
+        ADD,
+        MULTIPLY
+    }
+
+    private class Operation
+    {
+        public OperationType Type { get; set; }
+
+        public long Argument { get; set; }
+    }
+
     private class MonkeyItem
     {
         public long StartingValue { get; set; }
@@ -20,11 +33,21 @@ public class Day11 : BaseDay
 
         public List<long> Divisors { get; set; }
 
-        public MonkeyItem()
+        public List<Operation> OperationsInOrder { get; set; }
+
+        public MonkeyItem(long value)
         {
+            StartingValue = value;
+            CurrentValue = value;
             Factors = new List<long>();
             Additions = new List<long>();
             Divisors = new List<long>();
+            OperationsInOrder = new List<Operation>();
+            OperationsInOrder.Add(new Operation()
+            {
+                Type = OperationType.MULTIPLY,
+                Argument = StartingValue
+            });
         }
     }
 
@@ -43,8 +66,7 @@ public class Day11 : BaseDay
 
         public int MonkeyIndexIfFalse { get; set; }
 
-        public int InspectTimes { get; set; }
-
+        public long InspectTimes { get; set; }
 
         private LogWrapper _logger;
 
@@ -64,11 +86,7 @@ public class Day11 : BaseDay
             var splitItems = items.Split(",");
             foreach (var splitItem in splitItems)
             {
-                Items.Enqueue(new MonkeyItem()
-                {
-                    CurrentValue = Int32.Parse(splitItem.Trim()),
-                    StartingValue = Int32.Parse(splitItem.Trim())
-                });
+                Items.Enqueue(new MonkeyItem(Int32.Parse(splitItem.Trim())));
             }
         }
 
@@ -116,24 +134,107 @@ public class Day11 : BaseDay
 
         private void ApplyOperation(MonkeyItem item)
         {
-            long argument = OperationSegments[2] == "old" ? item.CurrentValue : Int32.Parse(OperationSegments[2]);
+            var isSelfMultiply = OperationSegments[2] == "old";
+
+            long argument = isSelfMultiply ? item.CurrentValue : Int32.Parse(OperationSegments[2]);
 
             switch (OperationSegments[1])
             {
                 case "+":
-                    item.CurrentValue += argument;
-                    item.Additions.Add(argument);
+                    if (_worryLevelDivider == 1)
+                    {
+                        item.Additions.Add(argument);
+                        item.OperationsInOrder.Add(new Operation()
+                        {
+                            Argument = argument,
+                            Type = OperationType.ADD
+                        });
+                    }
+                    else
+                    {
+                        item.CurrentValue += argument;
+                    }
+
                     break;
                 case "*":
-                    item.CurrentValue *= argument;
-                    item.Factors.Add(argument);
+                    if (_worryLevelDivider == 1)
+                    {
+                        if (!isSelfMultiply)
+                        {
+                            item.Factors.Add(argument);
+                            item.OperationsInOrder.Add(new Operation()
+                            {
+                                Argument = argument,
+                                Type = OperationType.MULTIPLY
+                            });
+                        }
+                    }
+                    else
+                    {
+                        item.CurrentValue *= argument;
+                    }
+
                     break;
             }
         }
 
         public int FindOutToWhichMonkeyToThrow(MonkeyItem item)
         {
-            if (item.CurrentValue % Divider == 0)
+            var condition = item.CurrentValue % Divider == 0;
+            if (_worryLevelDivider == 1)
+            {
+                // if we have not done anything with the number 
+                // probably never the case
+                if (!item.Factors.Any() && !item.Additions.Any())
+                {
+                    condition = item.StartingValue % Divider == 0;
+                }
+                else if (!item.Additions.Any())
+                {
+                    // if we only have multiplications so far
+                    condition = item.StartingValue % Divider == 0 || item.Factors.Any(x => x == Divider);
+                }
+                else if (!item.Factors.Any())
+                {
+                    condition = (item.Additions.Sum() + item.StartingValue) % Divider == 0;
+                }
+                else
+                {
+                    // start from the end of the operations
+                    long activeSum = 0;
+
+                    for (int i = item.OperationsInOrder.Count - 1; i >= 0; i--)
+                    {
+                        var operation = item.OperationsInOrder[i];
+
+                        // we hit a multiply operation
+                        if (operation.Type == OperationType.MULTIPLY)
+                        {
+                            if (operation.Argument % Divider == 0)
+                            {
+                                condition = true;
+                                break;
+                            }
+
+                            // if not 
+                            // if we've been dealing with sums previously and they all added up to be divisible by 
+                            // the divider we could stop maybe if also the multiplier does something?
+                            if (activeSum != 0 && activeSum % Divider == 0)
+                            {
+                                condition = true;
+                                break;
+                            }
+                        }
+
+                        if (operation.Type == OperationType.ADD)
+                        {
+                            activeSum += operation.Argument;
+                        }
+                    }
+                }
+            }
+
+            if (condition)
             {
                 return MonkeyIndexIfTrue;
             }
@@ -162,15 +263,15 @@ public class Day11 : BaseDay
 
         logger.WriteLine("===== PART 1 =====");
 
-        ParseMonkeysFromInput(logger, 3);
+        // ParseMonkeysFromInput(logger, 3);
+        //
+        // PlayRounds(20, logger);
+        //
+        // var monkeyInspectsByOrder = _monkeys.Select(x => x.InspectTimes).OrderByDescending(x => x).ToList();
+        //
+        // var solution = monkeyInspectsByOrder[0] * monkeyInspectsByOrder[1];
 
-        PlayRounds(20, logger);
-
-        var monkeyInspectsByOrder = _monkeys.Select(x => x.InspectTimes).OrderByDescending(x => x).ToList();
-
-        var solution = monkeyInspectsByOrder[0] * monkeyInspectsByOrder[1];
-
-        return new(solution.ToString());
+        return new(12.ToString());
     }
 
     public override ValueTask<string> Solve_2()
@@ -179,16 +280,17 @@ public class Day11 : BaseDay
         var logger = new LogWrapper();
 
         logger.WriteLine("===== PART 2 =====");
-        
-        ParseMonkeysFromInput(logger, 3);
 
-        PlayRounds(20, logger, true);
+        ParseMonkeysFromInput(logger, 1);
 
-        var monkeyInspectsByOrder = _monkeys.Select(x => x.InspectTimes).OrderByDescending(x => x).ToList();
+        PlayRounds(10000, logger, true);
+
+        var monkeyInspectsByOrder = _monkeys.Select(x => new { time = x.InspectTimes, index = x.MonkeyIndex })
+            .OrderByDescending(x => x.time).ToList();
 
         logger.WriteLine($"Monkey Inspect times: {JsonSerializer.Serialize(monkeyInspectsByOrder)}");
 
-        var solution = monkeyInspectsByOrder[0] * monkeyInspectsByOrder[1];
+        var solution = monkeyInspectsByOrder[0].time * monkeyInspectsByOrder[1].time;
 
         return new(solution.ToString());
     }
