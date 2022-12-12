@@ -45,12 +45,16 @@ public class Day11 : BaseDay
 
         public int InspectTimes { get; set; }
 
+
         private LogWrapper _logger;
 
-        public Monkey(LogWrapper logger, int monkeyIndex)
+        private readonly long _worryLevelDivider;
+
+        public Monkey(LogWrapper logger, int monkeyIndex, long worryLevelDivider)
         {
             Items = new Queue<MonkeyItem>();
             _logger = logger;
+            _worryLevelDivider = worryLevelDivider;
             MonkeyIndex = monkeyIndex;
             InspectTimes = 0;
         }
@@ -90,14 +94,13 @@ public class Day11 : BaseDay
             MonkeyIndexIfFalse = Int32.Parse(ifFalse.Split(" ").Last().Trim());
         }
 
-        public MonkeyItem InspectItem(int worryLevelDivider)
+        public MonkeyItem InspectItem()
         {
             var item = Items.Dequeue();
 
             ApplyOperation(item);
 
-            item.CurrentValue /= worryLevelDivider;
-            item.Divisors.Add(worryLevelDivider);
+            item.CurrentValue /= _worryLevelDivider;
 
             // what if we only deal with the last 3 digits?
 
@@ -159,9 +162,9 @@ public class Day11 : BaseDay
 
         logger.WriteLine("===== PART 1 =====");
 
-        ParseMonkeysFromInput(logger);
+        ParseMonkeysFromInput(logger, 3);
 
-        PlayRounds(20, 3, logger);
+        PlayRounds(20, logger);
 
         var monkeyInspectsByOrder = _monkeys.Select(x => x.InspectTimes).OrderByDescending(x => x).ToList();
 
@@ -176,13 +179,10 @@ public class Day11 : BaseDay
         var logger = new LogWrapper();
 
         logger.WriteLine("===== PART 2 =====");
-        logger.WriteLine("===== PART 2 =====");
-        logger.WriteLine("===== PART 2 =====");
-        logger.WriteLine("===== PART 2 =====");
+        
+        ParseMonkeysFromInput(logger, 3);
 
-        ParseMonkeysFromInput(logger);
-
-        PlayRounds(20, 3, logger, true);
+        PlayRounds(20, logger, true);
 
         var monkeyInspectsByOrder = _monkeys.Select(x => x.InspectTimes).OrderByDescending(x => x).ToList();
 
@@ -193,7 +193,7 @@ public class Day11 : BaseDay
         return new(solution.ToString());
     }
 
-    private void PlayRounds(int rounds, int worryLevelDivider, LogWrapper logger, bool optimizeThrownValues = false)
+    private void PlayRounds(int rounds, LogWrapper logger, bool optimizeThrownValues = false)
     {
         for (int i = 1; i <= rounds; i++)
         {
@@ -211,7 +211,7 @@ public class Day11 : BaseDay
 
                 while (activeMonkey.HasItem())
                 {
-                    var inspectValue = activeMonkey.InspectItem(worryLevelDivider);
+                    var inspectValue = activeMonkey.InspectItem();
 
                     logger.WriteLine(
                         $"======= Inspected Item with Value : {inspectValue.CurrentValue} - Monkey now has Items: {JsonSerializer.Serialize(activeMonkey.Items.Select(x => x.CurrentValue))}");
@@ -235,10 +235,10 @@ public class Day11 : BaseDay
         }
     }
 
-    private void ParseMonkeysFromInput(LogWrapper logger)
+    private void ParseMonkeysFromInput(LogWrapper logger, long worryLevelDivider)
     {
         var monkeyIndex = 0;
-        var activeMonkey = new Monkey(logger, monkeyIndex);
+        var activeMonkey = new Monkey(logger, monkeyIndex, worryLevelDivider);
         _monkeys = new List<Monkey>();
         for (int i = 0; i < _lines.Count; i++)
         {
@@ -250,7 +250,7 @@ public class Day11 : BaseDay
                 // add it to the list and create a new one
                 _monkeys.Add(activeMonkey);
                 monkeyIndex++;
-                activeMonkey = new Monkey(logger, monkeyIndex);
+                activeMonkey = new Monkey(logger, monkeyIndex, worryLevelDivider);
                 continue;
             }
 
