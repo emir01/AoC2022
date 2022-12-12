@@ -8,10 +8,30 @@ public class Day11 : BaseDay
     private readonly string _input;
     private readonly List<string> _lines;
 
+    private class MonkeyItem
+    {
+        public long StartingValue { get; set; }
+
+        public long CurrentValue { get; set; }
+
+        public List<long> Factors { get; set; }
+
+        public List<long> Additions { get; set; }
+
+        public List<long> Divisors { get; set; }
+
+        public MonkeyItem()
+        {
+            Factors = new List<long>();
+            Additions = new List<long>();
+            Divisors = new List<long>();
+        }
+    }
+
     private class Monkey
     {
         // The Items the money is holding
-        public Queue<long> MonkeyItems { get; set; }
+        public Queue<MonkeyItem> Items { get; set; }
 
         public string[] OperationSegments { get; set; }
 
@@ -29,7 +49,7 @@ public class Day11 : BaseDay
 
         public Monkey(LogWrapper logger, int monkeyIndex)
         {
-            MonkeyItems = new Queue<long>();
+            Items = new Queue<MonkeyItem>();
             _logger = logger;
             MonkeyIndex = monkeyIndex;
             InspectTimes = 0;
@@ -40,7 +60,11 @@ public class Day11 : BaseDay
             var splitItems = items.Split(",");
             foreach (var splitItem in splitItems)
             {
-                MonkeyItems.Enqueue(Int32.Parse(splitItem.Trim()));
+                Items.Enqueue(new MonkeyItem()
+                {
+                    CurrentValue = Int32.Parse(splitItem.Trim()),
+                    StartingValue = Int32.Parse(splitItem.Trim())
+                });
             }
         }
 
@@ -66,11 +90,16 @@ public class Day11 : BaseDay
             MonkeyIndexIfFalse = Int32.Parse(ifFalse.Split(" ").Last().Trim());
         }
 
-        public long InspectItem(int worryLevelDivider)
+        public MonkeyItem InspectItem(int worryLevelDivider)
         {
-            var item = MonkeyItems.Dequeue();
-            var itemAfterOperation = ApplyOperation(item);
-            long itemAfterInspect = itemAfterOperation / worryLevelDivider;
+            var item = Items.Dequeue();
+
+            ApplyOperation(item);
+
+            item.CurrentValue /= worryLevelDivider;
+            item.Divisors.Add(worryLevelDivider);
+
+            // what if we only deal with the last 3 digits?
 
             // _logger.WriteLine(
             //     $"Monkey with index:{MonkeyIndex} is inspecting original Item: {item} " +
@@ -79,30 +108,29 @@ public class Day11 : BaseDay
 
             InspectTimes++;
 
-            return itemAfterInspect;
+            return item;
         }
 
-        private long ApplyOperation(long item)
+        private void ApplyOperation(MonkeyItem item)
         {
-            var result = item;
-            long argument = OperationSegments[2] == "old" ? item : Int32.Parse(OperationSegments[2]);
+            long argument = OperationSegments[2] == "old" ? item.CurrentValue : Int32.Parse(OperationSegments[2]);
 
             switch (OperationSegments[1])
             {
                 case "+":
-                    result += argument;
+                    item.CurrentValue += argument;
+                    item.Additions.Add(argument);
                     break;
                 case "*":
-                    result *= argument;
+                    item.CurrentValue *= argument;
+                    item.Factors.Add(argument);
                     break;
             }
-
-            return result;
         }
 
-        public int FindOutToWhichMonkeyToThrow(long inspectValue)
+        public int FindOutToWhichMonkeyToThrow(MonkeyItem item)
         {
-            if (inspectValue % Divider == 0)
+            if (item.CurrentValue % Divider == 0)
             {
                 return MonkeyIndexIfTrue;
             }
@@ -112,7 +140,7 @@ public class Day11 : BaseDay
 
         public bool HasItem()
         {
-            return MonkeyItems.TryPeek(out long _);
+            return Items.TryPeek(out MonkeyItem _);
         }
     }
 
@@ -148,10 +176,13 @@ public class Day11 : BaseDay
         var logger = new LogWrapper();
 
         logger.WriteLine("===== PART 2 =====");
+        logger.WriteLine("===== PART 2 =====");
+        logger.WriteLine("===== PART 2 =====");
+        logger.WriteLine("===== PART 2 =====");
 
         ParseMonkeysFromInput(logger);
 
-        PlayRounds(5, 1, logger);
+        PlayRounds(20, 3, logger, true);
 
         var monkeyInspectsByOrder = _monkeys.Select(x => x.InspectTimes).OrderByDescending(x => x).ToList();
 
@@ -162,7 +193,7 @@ public class Day11 : BaseDay
         return new(solution.ToString());
     }
 
-    private void PlayRounds(int rounds, int worryLevelDivider, LogWrapper logger)
+    private void PlayRounds(int rounds, int worryLevelDivider, LogWrapper logger, bool optimizeThrownValues = false)
     {
         for (int i = 1; i <= rounds; i++)
         {
@@ -183,13 +214,14 @@ public class Day11 : BaseDay
                     var inspectValue = activeMonkey.InspectItem(worryLevelDivider);
 
                     logger.WriteLine(
-                        $"======= Inspected Item with Value : {inspectValue} - Monkey now has Items: {JsonSerializer.Serialize(activeMonkey.MonkeyItems)}");
+                        $"======= Inspected Item with Value : {inspectValue.CurrentValue} - Monkey now has Items: {JsonSerializer.Serialize(activeMonkey.Items.Select(x => x.CurrentValue))}");
 
                     var throwToWhichMonkey = activeMonkey.FindOutToWhichMonkeyToThrow(inspectValue);
-                    _monkeys[throwToWhichMonkey].MonkeyItems.Enqueue(inspectValue);
+
+                    _monkeys[throwToWhichMonkey].Items.Enqueue(inspectValue);
 
                     logger.WriteLine(
-                        $"======= Throwing Inspected Item: {inspectValue} to {throwToWhichMonkey}");
+                        $"======= Throwing Inspected Item: {inspectValue.CurrentValue} to {throwToWhichMonkey}");
                 }
             }
 
@@ -198,7 +230,7 @@ public class Day11 : BaseDay
             foreach (var monkey in _monkeys)
             {
                 logger.WriteLine(
-                    $"Monkey[{monkey.MonkeyIndex}][{monkey.InspectTimes}]: {JsonSerializer.Serialize(monkey.MonkeyItems)}");
+                    $"Monkey[{monkey.MonkeyIndex}][{monkey.InspectTimes}]: {JsonSerializer.Serialize(monkey.Items.Select(x => x.CurrentValue).ToList())}");
             }
         }
     }
