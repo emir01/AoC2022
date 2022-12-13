@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Text.Json;
 using AdventOfCode.Utils;
 
@@ -18,30 +19,36 @@ public class Day11 : BaseDay
     {
         public OperationType Type { get; set; }
 
-        public long Argument { get; set; }
+        public BigInteger Argument { get; set; }
     }
 
     private class MonkeyItem
     {
-        public long StartingValue { get; set; }
+        public BigInteger StartingValue { get; set; }
 
-        public long CurrentValue { get; set; }
+        public BigInteger CurrentValue { get; set; }
 
-        public List<long> Factors { get; set; }
+        public List<BigInteger> Factors { get; set; }
 
-        public List<long> Additions { get; set; }
+        public List<BigInteger> Additions { get; set; }
 
-        public List<long> Divisors { get; set; }
+        public List<BigInteger> Divisors { get; set; }
 
         public List<Operation> OperationsInOrder { get; set; }
+
+        public bool StartingIsEven { get; set; }
+        public bool CurrentIsEven { get; set; }
+
+        public string NumberInStringFormat { get; set; }
 
         public MonkeyItem(long value)
         {
             StartingValue = value;
             CurrentValue = value;
-            Factors = new List<long>();
-            Additions = new List<long>();
-            Divisors = new List<long>();
+            NumberInStringFormat = value.ToString();
+            Factors = new List<BigInteger>();
+            Additions = new List<BigInteger>();
+            Divisors = new List<BigInteger>();
             OperationsInOrder = new List<Operation>();
             OperationsInOrder.Add(new Operation()
             {
@@ -67,6 +74,7 @@ public class Day11 : BaseDay
         public int MonkeyIndexIfFalse { get; set; }
 
         public long InspectTimes { get; set; }
+
 
         private LogWrapper _logger;
 
@@ -136,13 +144,19 @@ public class Day11 : BaseDay
         {
             var isSelfMultiply = OperationSegments[2] == "old";
 
-            long argument = isSelfMultiply ? item.CurrentValue : Int32.Parse(OperationSegments[2]);
+            BigInteger argument = isSelfMultiply
+                ? BigInteger.Parse(item.NumberInStringFormat)
+                : BigInteger.Parse(OperationSegments[2]);
 
             switch (OperationSegments[1])
             {
                 case "+":
                     if (_worryLevelDivider == 1)
                     {
+                        BigInteger b = BigInteger.Parse(item.NumberInStringFormat);
+                        b += argument;
+                        item.NumberInStringFormat = b.ToString();
+
                         item.Additions.Add(argument);
                         item.OperationsInOrder.Add(new Operation()
                         {
@@ -159,6 +173,10 @@ public class Day11 : BaseDay
                 case "*":
                     if (_worryLevelDivider == 1)
                     {
+                        BigInteger b = BigInteger.Parse(item.NumberInStringFormat);
+                        b *= argument;
+                        item.NumberInStringFormat = b.ToString();
+
                         if (!isSelfMultiply)
                         {
                             item.Factors.Add(argument);
@@ -180,66 +198,183 @@ public class Day11 : BaseDay
 
         public int FindOutToWhichMonkeyToThrow(MonkeyItem item)
         {
-            var condition = item.CurrentValue % Divider == 0;
+            var condition = true;
+
             if (_worryLevelDivider == 1)
             {
-                // if we have not done anything with the number 
-                // probably never the case
-                if (!item.Factors.Any() && !item.Additions.Any())
+                switch (Divider)
                 {
-                    condition = item.StartingValue % Divider == 0;
-                }
-                else if (!item.Additions.Any())
-                {
-                    // if we only have multiplications so far
-                    condition = item.StartingValue % Divider == 0 || item.Factors.Any(x => x == Divider);
-                }
-                else if (!item.Factors.Any())
-                {
-                    condition = (item.Additions.Sum() + item.StartingValue) % Divider == 0;
-                }
-                else
-                {
-                    // start from the end of the operations
-                    long activeSum = 0;
+                    case 19:
+                        var workingString =
+                            item.NumberInStringFormat.Substring(0, item.NumberInStringFormat.Length - 1);
 
-                    for (int i = item.OperationsInOrder.Count - 1; i >= 0; i--)
+                        var twice = Int32.Parse(item.NumberInStringFormat.Last().ToString()) * 2;
+                        BigInteger rest =
+                            BigInteger.Parse(workingString);
+
+                        var result = twice + rest;
+
+                        while (rest > 1000)
+                        {
+                            workingString = result.ToString().Substring(0, workingString.Length - 1);
+                            twice = Int32.Parse(workingString.Last().ToString()) * 2;
+                            rest = BigInteger.Parse(workingString);
+                            result = twice + rest;
+                        }
+
+                        condition = result == 0 || result % 19 == 0;
+
+                        break;
+
+                    case 2:
+                        var lastDigit = Int32.Parse(item.NumberInStringFormat.Last().ToString());
+                        condition = lastDigit == 0 || lastDigit == 2 || lastDigit == 4 || lastDigit == 6 ||
+                                    lastDigit == 8;
+                        break;
+                    case 3:
+                        var sum = 0;
+                        for (int i = 0; i < item.NumberInStringFormat.Length; i++)
+                        {
+                            sum += Int32.Parse(item.NumberInStringFormat[i].ToString());
+                        }
+
+                        condition = sum % 3 == 0;
+                        break;
+                    case 17:
                     {
-                        var operation = item.OperationsInOrder[i];
+                        var workingString17 =
+                            item.NumberInStringFormat.Substring(0, item.NumberInStringFormat.Length - 1);
 
-                        // we hit a multiply operation
-                        if (operation.Type == OperationType.MULTIPLY)
+                        var fiveTimes = Int32.Parse(item.NumberInStringFormat.Last().ToString()) * 5;
+                        BigInteger rest17 =
+                            BigInteger.Parse(workingString17);
+
+                        var result17 = rest17 - fiveTimes;
+
+                        while (rest17 > 1000)
                         {
-                            if (operation.Argument % Divider == 0)
-                            {
-                                condition = true;
-                                break;
-                            }
+                            workingString17 = result17.ToString().Substring(0, workingString17.Length - 1);
+                            fiveTimes = Int32.Parse(workingString17.Last().ToString()) * 5;
+                            rest17 = BigInteger.Parse(workingString17);
+                            result17 = rest17 - fiveTimes;
+                        }
 
-                            // if not 
-                            // if we've been dealing with sums previously and they all added up to be divisible by 
-                            // the divider we could stop maybe if also the multiplier does something?
-                            if (activeSum != 0 && activeSum % Divider == 0)
+                        condition = result17 == 0 || result17 % 17 == 0;
+
+                        break;
+                    }
+                    case 13:
+                    {
+                        var workingString13 =
+                            item.NumberInStringFormat.Substring(0, item.NumberInStringFormat.Length - 1);
+
+                        var nineTimes = Int32.Parse(item.NumberInStringFormat.Last().ToString()) * 9;
+                        BigInteger rest13 =
+                            BigInteger.Parse(workingString13);
+
+                        var result13 = rest13 - nineTimes;
+
+                        while (rest13 > 1000)
+                        {
+                            workingString13 = result13.ToString().Substring(0, workingString13.Length - 1);
+                            nineTimes = Int32.Parse(workingString13.Last().ToString()) * 9;
+                            rest13 = BigInteger.Parse(workingString13);
+                            result13 = rest13 - nineTimes;
+                        }
+
+                        condition = result13 == 0 || result13 % 13 == 0;
+
+                        break;
+                    }
+                    case 7:
+                    {
+                        var workingString7 =
+                            item.NumberInStringFormat.Substring(0, item.NumberInStringFormat.Length - 1);
+
+                        var twice7 = Int32.Parse(item.NumberInStringFormat.Last().ToString()) * 2;
+                        BigInteger rest7 =
+                            BigInteger.Parse(workingString7);
+
+                        var result7 = rest7 - twice7;
+
+                        while (rest7 > 1000)
+                        {
+                            workingString7 = result7.ToString().Substring(0, workingString7.Length - 1);
+                            twice7 = Int32.Parse(workingString7.Last().ToString()) * 2;
+                            rest7 = BigInteger.Parse(workingString7);
+                            result7 = rest7 - twice7;
+                        }
+
+                        condition = result7 == 0 || result7 % 7 == 0;
+
+                        break;
+                    }
+                    case 5:
+                    {
+                        var lastDigitFive = Int32.Parse(item.NumberInStringFormat.Last().ToString());
+                        condition = lastDigitFive == 0 || lastDigitFive == 5;
+
+                        break;
+                    }
+                    case 11:
+                    {
+                        var sumElevenOdd = 0;
+                        var sumElevenEven = 0;
+                        for (int i = 0; i < item.NumberInStringFormat.Length; i++)
+                        {
+                            if ((i + 1) % 2 == 0)
                             {
-                                condition = true;
-                                break;
+                                sumElevenEven += Int32.Parse(item.NumberInStringFormat[i].ToString());
+                            }
+                            else
+                            {
+                                sumElevenOdd += Int32.Parse(item.NumberInStringFormat[i].ToString());
                             }
                         }
 
-                        if (operation.Type == OperationType.ADD)
-                        {
-                            activeSum += operation.Argument;
-                        }
+                        condition = (sumElevenEven - sumElevenOdd) % 11 == 0;
+                        break;
                     }
                 }
-            }
 
-            if (condition)
+                // // if we have not done anything with the number 
+                // // probably never the case
+                // if (!item.Factors.Any() && !item.Additions.Any())
+                // {
+                //     condition = item.StartingValue % Divider == 0;
+                // }
+                // else if (!item.Additions.Any())
+                // {
+                //     // if we only have multiplications so far
+                //     condition = item.StartingValue % Divider == 0 || item.Factors.Any(x => x == Divider);
+                // }
+                // else if (!item.Factors.Any())
+                // {
+                //     condition = (item.Additions.Aggregate(BigInteger.Add) + item.StartingValue) % Divider == 0;
+                // }
+                // else
+                // {
+                //     // start from the end of the operations
+                //     long activeSum = 0;
+                //     var divisible = false;
+                //
+                //     // start from the start of the operations ? 
+                //     for (int i = 0; i < item.OperationsInOrder.Count; i++)
+                //     {
+                //         var operation = item.OperationsInOrder[i];
+                //
+                //         if (operation.Type == OperationType.MULTIPLY)
+                //         {
+                //         }
+                //     }
+                // }
+            }
+            else
             {
-                return MonkeyIndexIfTrue;
+                condition = item.CurrentValue % Divider == 0;
             }
 
-            return MonkeyIndexIfFalse;
+            return condition ? MonkeyIndexIfTrue : MonkeyIndexIfFalse;
         }
 
         public bool HasItem()
