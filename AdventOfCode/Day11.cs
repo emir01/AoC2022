@@ -28,6 +28,8 @@ public class Day11 : BaseDay
 
         public long CurrentValue { get; set; }
 
+        public long PreviousValue { get; set; }
+
         public List<long> Factors { get; set; }
 
         public List<long> Additions { get; set; }
@@ -36,10 +38,8 @@ public class Day11 : BaseDay
 
         public List<Operation> OperationsInOrder { get; set; }
 
-        public bool StartingIsEven { get; set; }
-        public bool CurrentIsEven { get; set; }
-
         public string NumberInStringFormat { get; set; }
+
 
         public MonkeyItem(long value)
         {
@@ -141,24 +141,7 @@ public class Day11 : BaseDay
         }
 
         // Should be the opposite of Apply
-        public void RestoreWorry(MonkeyItem item)
-        {
-            // var isSelfMultiply = OperationSegments[2] == "old";
-            //
-            // long argument = isSelfMultiply
-            //     ? item.CurrentValue
-            //     : long.Parse(OperationSegments[2]);
-            //
-            // switch (OperationSegments[1])
-            // {
-            //     case "*":
-            //         item.CurrentValue /= argument;
-            //
-            //         break;
-            // }
-        }
-
-        private void ApplyOperation(MonkeyItem item)
+        public void UndoOperation(MonkeyItem item)
         {
             var isSelfMultiply = OperationSegments[2] == "old";
 
@@ -169,57 +152,70 @@ public class Day11 : BaseDay
             switch (OperationSegments[1])
             {
                 case "+":
-                    if (_worryLevelDivider == 1)
-                    {
-                        item.CurrentValue += argument;
-                        if (item.CurrentValue < 0)
-                        {
-                            item.CurrentValue = Math.Abs(item.CurrentValue) + 1;
-                        }
 
-                        item.Additions.Add(argument);
-                        item.OperationsInOrder.Add(new Operation()
-                        {
-                            Argument = argument,
-                            Type = OperationType.ADD
-                        });
-                    }
-                    else
+                    item.Additions.Add(argument);
+                    item.OperationsInOrder.Add(new Operation()
                     {
-                        item.CurrentValue += argument;
-                    }
+                        Argument = argument,
+                        Type = OperationType.ADD
+                    });
+
+                    item.CurrentValue += argument;
 
                     break;
                 case "*":
-                    if (_worryLevelDivider == 1)
+                    item.Factors.Add(argument);
+                    item.OperationsInOrder.Add(new Operation()
                     {
-                        item.CurrentValue *= argument;
+                        Argument = argument,
+                        Type = OperationType.MULTIPLY
+                    });
+                    item.CurrentValue *= argument;
 
-                        if (item.CurrentValue < 0)
-                        {
-                            item.CurrentValue = Math.Abs(item.CurrentValue) + 1;
-                        }
-
-                        if (!isSelfMultiply)
-                        {
-                            item.Factors.Add(argument);
-                            item.OperationsInOrder.Add(new Operation()
-                            {
-                                Argument = argument,
-                                Type = OperationType.MULTIPLY
-                            });
-                        }
-                    }
-                    else
-                    {
-                        item.CurrentValue *= argument;
-                    }
 
                     break;
             }
         }
 
-        public int FindOutToWhichMonkeyToThrow(MonkeyItem item)
+        private void ApplyOperation(MonkeyItem item)
+        {
+            var isSelfMultiply = OperationSegments[2] == "old";
+
+            long argument = isSelfMultiply
+                ? item.CurrentValue
+                : long.Parse(OperationSegments[2]);
+
+            item.PreviousValue = item.CurrentValue;
+
+            switch (OperationSegments[1])
+            {
+                case "+":
+
+                    item.Additions.Add(argument);
+                    item.OperationsInOrder.Add(new Operation()
+                    {
+                        Argument = argument,
+                        Type = OperationType.ADD
+                    });
+
+                    item.CurrentValue += argument;
+
+                    break;
+                case "*":
+                    item.Factors.Add(argument);
+                    item.OperationsInOrder.Add(new Operation()
+                    {
+                        Argument = argument,
+                        Type = OperationType.MULTIPLY
+                    });
+
+                    item.CurrentValue *= argument;
+
+                    break;
+            }
+        }
+
+        public int FindOutToWhichMonkeyToThrow(MonkeyItem item, List<Monkey> monkeys)
         {
             var condition = true;
             //
@@ -266,7 +262,9 @@ public class Day11 : BaseDay
 
             condition = item.CurrentValue % Divider == 0;
 
-            return condition ? MonkeyIndexIfTrue : MonkeyIndexIfFalse;
+            var monkeyIndex = condition ? MonkeyIndexIfTrue : MonkeyIndexIfFalse;
+
+            return monkeyIndex;
         }
 
         public bool HasItem()
@@ -290,15 +288,15 @@ public class Day11 : BaseDay
 
         logger.WriteLine("===== PART 1 =====");
 
-        // ParseMonkeysFromInput(logger, 3);
-        //
-        // PlayRounds(20, logger);
-        //
-        // var monkeyInspectsByOrder = _monkeys.Select(x => x.InspectTimes).OrderByDescending(x => x).ToList();
-        //
-        // var solution = monkeyInspectsByOrder[0] * monkeyInspectsByOrder[1];
+        ParseMonkeysFromInput(logger, 3);
 
-        return new(12.ToString());
+        PlayRounds(20, logger);
+
+        var monkeyInspectsByOrder = _monkeys.Select(x => x.InspectTimes).OrderByDescending(x => x).ToList();
+
+        var solution = monkeyInspectsByOrder[0] * monkeyInspectsByOrder[1];
+
+        return new(solution.ToString());
     }
 
     public override ValueTask<string> Solve_2()
@@ -345,9 +343,7 @@ public class Day11 : BaseDay
                     logger.WriteLine(
                         $"======= Inspected Item with Value : {inspectValue.CurrentValue} - Monkey now has Items: {JsonSerializer.Serialize(activeMonkey.Items.Select(x => x.CurrentValue))}");
 
-                    var throwToWhichMonkey = activeMonkey.FindOutToWhichMonkeyToThrow(inspectValue);
-
-                    activeMonkey.RestoreWorry(inspectValue);
+                    var throwToWhichMonkey = activeMonkey.FindOutToWhichMonkeyToThrow(inspectValue, _monkeys);
 
                     _monkeys[throwToWhichMonkey].Items.Enqueue(inspectValue);
 
