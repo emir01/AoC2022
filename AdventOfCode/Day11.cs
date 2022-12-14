@@ -306,18 +306,18 @@ public class Day11 : BaseDay
 
         logger.WriteLine("===== PART 2 =====");
 
-        ParseMonkeysFromInput(logger, 1);
+        // ParseMonkeysFromInput(logger, 1);
+        //
+        // PlayRounds(10000, logger, true);
+        //
+        // var monkeyInspectsByOrder = _monkeys.Select(x => new { time = x.InspectTimes, index = x.MonkeyIndex })
+        //     .OrderByDescending(x => x.time).ToList();
+        //
+        // logger.WriteLine($"Monkey Inspect times: {JsonSerializer.Serialize(monkeyInspectsByOrder)}");
+        //
+        // var solution = monkeyInspectsByOrder[0].time * monkeyInspectsByOrder[1].time;
 
-        PlayRounds(10000, logger, true);
-
-        var monkeyInspectsByOrder = _monkeys.Select(x => new { time = x.InspectTimes, index = x.MonkeyIndex })
-            .OrderByDescending(x => x.time).ToList();
-
-        logger.WriteLine($"Monkey Inspect times: {JsonSerializer.Serialize(monkeyInspectsByOrder)}");
-
-        var solution = monkeyInspectsByOrder[0].time * monkeyInspectsByOrder[1].time;
-
-        return new(solution.ToString());
+        return new("FAIL");
     }
 
     private void PlayRounds(int rounds, LogWrapper logger, bool optimizeThrownValues = false)
