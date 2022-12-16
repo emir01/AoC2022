@@ -33,6 +33,13 @@ public class Day12 : BaseDay
         }
     }
 
+    private class VisitedNodeRecord
+    {
+        public Tile VisitedNode { get; set; }
+
+        public int PathCountWhenVisited { get; set; }
+    }
+
     private class Tile
     {
         public int X { get; set; }
@@ -69,14 +76,15 @@ public class Day12 : BaseDay
             return ((int)c) - 96;
         }
 
-        public bool CouldVisit(Tile nodeToCheckIfCouldVisit, Path currentPath, List<Tile> visitedTiles = null)
+        public bool CouldVisit(Tile nodeToCheckIfCouldVisit, Path currentPath,
+            List<VisitedNodeRecord> visitedTiles = null)
         {
             if (nodeToCheckIfCouldVisit == null)
             {
                 return false;
             }
 
-            // prevents backtrack
+            // prevents backtrack and cycle
             if (currentPath.NodesInPath.Any(x => x == nodeToCheckIfCouldVisit))
             {
                 return false;
@@ -84,10 +92,10 @@ public class Day12 : BaseDay
 
             // if we have visited the node we are checking previously we don't have to go down that path again
             // as a route could already have been found.
-            if (visitedTiles != null && visitedTiles.Any(x => nodeToCheckIfCouldVisit == x))
-            {
-                return false;
-            }
+            // if (visitedTiles != null && visitedTiles.Any(x => x.VisitedNode == nodeToCheckIfCouldVisit))
+            // {
+            //     return false;
+            // }
 
             var costDifference = Math.Abs(Cost - nodeToCheckIfCouldVisit.Cost);
             if (costDifference == 1 || costDifference == 0)
@@ -106,7 +114,12 @@ public class Day12 : BaseDay
 
     private Tile[,] _map;
 
-    private List<Tile> _globallyVisitedTiles = new List<Tile>();
+    // We have to keep track of all visited Tiles - but also the path when they were visited
+    // if on a next visit we are visiting with a lower cost path 
+    // we can continue down the node.
+    // otherwise there is no reason to check if our current path is longer in reaching that node.
+    private List<VisitedNodeRecord> _globallyVisitedTiles =
+        new List<VisitedNodeRecord>();
 
     private int _rows;
     private int _columns;
@@ -217,7 +230,7 @@ public class Day12 : BaseDay
 
         logger.WriteLine("===== PART 1 =====");
 
-        PrintCurrentMap(logger, true, true);
+        // PrintCurrentMap(logger, true, true);
 
         var startNode = _map[startCoordinates.x, startCoordinates.y];
 
@@ -230,7 +243,29 @@ public class Day12 : BaseDay
         // solution will probably be to pick the lowest numbered traverse
         var pathsToEnd = GetPaths(pathStartingFromStartNode, logger);
 
-        return new("Solution");
+        foreach (var path in pathsToEnd)
+        {
+            logger.WriteLine(
+                $"There is a Path from the Start - First Heading Towards: [{path.NodesInPath[1].X}, {path.NodesInPath[1].Y}] that reaches the end in {path.NodesInPath.Count - 1} steps");
+
+            logger.WriteLine($"===  PRINTING PATH COORDS ====");
+
+            for (int i = 0; i < path.NodesInPath.Count; i++)
+            {
+                logger.WriteLine($"[{path.NodesInPath[i].X},{path.NodesInPath[i].Y}]");
+            }
+        }
+
+        var bestPathNodeCount = pathsToEnd.Min(x => x.NodesInPath.Count);
+        var bestPath = pathsToEnd.FirstOrDefault(x => x.NodesInPath.Count == bestPathNodeCount);
+
+        var solution = "Solution";
+        if (bestPath != null)
+        {
+            solution = (bestPath.NodesInPath.Count - 1).ToString();
+        }
+
+        return new(solution);
     }
 
     private List<Path> GetPaths(Path path, LogWrapper logger)
@@ -239,12 +274,37 @@ public class Day12 : BaseDay
         // we inspect all the paths that can originate from this node
         var node = path.NodesInPath.Last();
 
-        if (_globallyVisitedTiles.All(x => x != node))
+        var pathsReachingTheEnd = new List<Path>();
+
+        // hitting the node for the first time
+        var previousNodeVisit = _globallyVisitedTiles.FirstOrDefault(x => x.VisitedNode == node);
+        if (previousNodeVisit == null)
         {
-            _globallyVisitedTiles.Add(node);
+            _globallyVisitedTiles.Add(new VisitedNodeRecord()
+            {
+                VisitedNode = node,
+                PathCountWhenVisited = path.NodesInPath.Count
+            });
+        }
+        else
+        {
+            // we have visited this node before with some path which had lower cost
+            // from our current. Our current can never be better starting from that same node
+            if (previousNodeVisit.PathCountWhenVisited < path.NodesInPath.Count)
+            {
+                // so we don't have to process further
+                return pathsReachingTheEnd;
+            }
+
+            // if our current path is better up to the point we replace visited record and continue exploring
+            _globallyVisitedTiles.Remove(previousNodeVisit);
+            _globallyVisitedTiles.Add(new VisitedNodeRecord()
+            {
+                VisitedNode = node,
+                PathCountWhenVisited = path.NodesInPath.Count
+            });
         }
 
-        var pathsReachingTheEnd = new List<Path>();
 
         // if this last node is an end node 
         // we don't have to explore further so we return the List with a single path:the current one
@@ -285,7 +345,7 @@ public class Day12 : BaseDay
 
         if (node.CouldVisit(node.West, path, _globallyVisitedTiles))
         {
-            logger.WriteLine($"Starting from  [{node.X},{node.Y}] can go to WEST [{node.West.X},{node.West.Y}]");
+            // logger.WriteLine($"Starting from  [{node.X},{node.Y}] can go to WEST [{node.West.X},{node.West.Y}]");
 
             // create a new path that will now also additionally include the east node  
             var pathIncludingTheWestNode = new Path(path, node.West, node);
@@ -309,7 +369,7 @@ public class Day12 : BaseDay
 
         if (node.CouldVisit(node.North, path, _globallyVisitedTiles))
         {
-            logger.WriteLine($"Starting from  [{node.X},{node.Y}] can go to NORTH [{node.North.X},{node.North.Y}]");
+            // logger.WriteLine($"Starting from  [{node.X},{node.Y}] can go to NORTH [{node.North.X},{node.North.Y}]");
 
             // create a new path that will now also additionally include the east node  
             var pathIncludingTheNorthNode = new Path(path, node.North, node);
@@ -333,7 +393,8 @@ public class Day12 : BaseDay
 
         if (node.CouldVisit(node.South, path, _globallyVisitedTiles))
         {
-            logger.WriteLine($"Starting from  [{node.X},{node.Y}] can go to SOUTH [{node.South.X},{node.South.Y}]");
+            // logger.WriteLine($"Starting from  [{node.X},{node.Y}] can go to SOUTH [{node.South.X},{node.South.Y}]");
+
             // create a new path that will now also additionally include the east node  
             var pathIncludingTheSouthNode = new Path(path, node.South, node);
 
