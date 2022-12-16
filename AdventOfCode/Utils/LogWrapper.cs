@@ -27,4 +27,12 @@ public class LogWrapper
             Console.Write(message);
         }
     }
+    
+    public void Write(object message)
+    {
+        if (_logState)
+        {
+            Console.Write(message);
+        }
+    }
 }

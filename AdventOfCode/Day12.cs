@@ -1,24 +1,54 @@
-using System.Numerics;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text.Json;
+using System.Diagnostics;
 using AdventOfCode.Utils;
 
 namespace AdventOfCode;
 
 public class Day12 : BaseDay
 {
+    private class Path
+    {
+        public List<Tile> NodesInPath { get; set; }
+
+        public bool EndReached { get; set; }
+
+        // Determines from which specific node this path was created
+        // Used to figure out where we came from and to not backtrack.
+        // Avoid situations: S -> EAST -> WEST (S)
+        public Tile PathCreatedAtNode { get; set; }
+
+        public Path(Tile node, Tile pathCreatedAtNode = null)
+        {
+            PathCreatedAtNode = pathCreatedAtNode;
+            NodesInPath = new List<Tile>();
+            NodesInPath.Add(node);
+        }
+
+        public Path(Path extendedOnThisPath, Tile addedThisNode, Tile pathCreatedAtNode)
+        {
+            PathCreatedAtNode = pathCreatedAtNode;
+            NodesInPath = new List<Tile>();
+
+            NodesInPath.AddRange(extendedOnThisPath.NodesInPath);
+            NodesInPath.Add(addedThisNode);
+        }
+    }
+
     private class Tile
     {
         public int X { get; set; }
 
         public int Y { get; set; }
 
-        public string Value { get; set; }
+        public string Value
+        {
+            get => Value;
+            set { Cost = GetCost(value[0]); }
+        }
 
         public bool IsEnd { get; set; }
 
         public bool ContainsMe { get; set; }
+
         public int Cost { get; set; }
 
         public Tile North { get; set; }
@@ -38,6 +68,37 @@ public class Day12 : BaseDay
         {
             return ((int)c) - 96;
         }
+
+        public bool CouldVisit(Tile nodeToCheckIfCouldVisit, Path currentPath, List<Tile> visitedTiles = null)
+        {
+            if (nodeToCheckIfCouldVisit == null)
+            {
+                return false;
+            }
+
+            // prevents backtrack
+            if (currentPath.NodesInPath.Any(x => x == nodeToCheckIfCouldVisit))
+            {
+                return false;
+            }
+
+            // if we have visited the node we are checking previously we don't have to go down that path again
+            // as a route could already have been found.
+            if (visitedTiles != null && visitedTiles.Any(x => nodeToCheckIfCouldVisit == x))
+            {
+                return false;
+            }
+
+            var costDifference = Math.Abs(Cost - nodeToCheckIfCouldVisit.Cost);
+            if (costDifference == 1 || costDifference == 0)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
     }
 
     private readonly string _input;
@@ -45,9 +106,10 @@ public class Day12 : BaseDay
 
     private Tile[,] _map;
 
+    private List<Tile> _globallyVisitedTiles = new List<Tile>();
+
     private int _rows;
     private int _columns;
-
 
     private (int x, int y) startCoordinates = (0, 0);
 
@@ -155,22 +217,144 @@ public class Day12 : BaseDay
 
         logger.WriteLine("===== PART 1 =====");
 
-        PrintCurrentMap(logger, true);
+        PrintCurrentMap(logger, true, true);
 
         var startNode = _map[startCoordinates.x, startCoordinates.y];
-        var pathCost = GetOptimalPath(startNode, 0);
+
+        var pathStartingFromStartNode = new Path(startNode);
+
+        // return the paths from the starting node that reach the end.
+        // starting from a given node (let's say in the center) we can have up to 4 paths (E,W,N,S)
+        // that reach the end.
+        // Each of those could have a given number of nodes they travers
+        // solution will probably be to pick the lowest numbered traverse
+        var pathsToEnd = GetPaths(pathStartingFromStartNode, logger);
 
         return new("Solution");
     }
 
-    private int GetOptimalPath(Tile node, int currentVisitedTiles)
+    private List<Path> GetPaths(Path path, LogWrapper logger)
     {
-        if (node.IsEnd)
+        // the last node in the current path
+        // we inspect all the paths that can originate from this node
+        var node = path.NodesInPath.Last();
+
+        if (_globallyVisitedTiles.All(x => x != node))
         {
-            return 1;
+            _globallyVisitedTiles.Add(node);
         }
 
-        return 1;
+        var pathsReachingTheEnd = new List<Path>();
+
+        // if this last node is an end node 
+        // we don't have to explore further so we return the List with a single path:the current one
+        if (node.IsEnd)
+        {
+            path.EndReached = true;
+            pathsReachingTheEnd.Add(path);
+            return pathsReachingTheEnd;
+        }
+
+        // we are now going to check if our current node can expand in any direction
+        // to somehow reach the end
+
+        // check if we can go East at all (based on cost/height)
+        if (node.CouldVisit(node.East, path, _globallyVisitedTiles))
+        {
+            //logger.WriteLine($"Starting from  [{node.X},{node.Y}] can go to EAST: [{node.East.X},{node.East.Y}]");
+
+            // create a new path that will now also additionally include the east node  
+            var pathIncludingTheEastNode = new Path(path, node.East, node);
+
+            // traverse that potential path
+            var pathsBranchingFurtherFromEastNode = GetPaths(pathIncludingTheEastNode, logger);
+
+            var pathsThatReachedTheEndGoingEast = pathsBranchingFurtherFromEastNode.Where(x => x.EndReached).ToList();
+
+            if (pathsThatReachedTheEndGoingEast.Any())
+            {
+                var shortestDistanceTowardsEast = pathsThatReachedTheEndGoingEast.Min(x => x.NodesInPath.Count);
+
+                var shortestPathTowardsEast =
+                    pathsThatReachedTheEndGoingEast.FirstOrDefault(x =>
+                        x.NodesInPath.Count == shortestDistanceTowardsEast);
+
+                pathsReachingTheEnd.Add(shortestPathTowardsEast);
+            }
+        }
+
+        if (node.CouldVisit(node.West, path, _globallyVisitedTiles))
+        {
+            logger.WriteLine($"Starting from  [{node.X},{node.Y}] can go to WEST [{node.West.X},{node.West.Y}]");
+
+            // create a new path that will now also additionally include the east node  
+            var pathIncludingTheWestNode = new Path(path, node.West, node);
+
+            // traverse that potential path
+            var pathsBranchingFurtherFromWestNode = GetPaths(pathIncludingTheWestNode, logger);
+
+            var pathsThatReachedTheEndGoingWest = pathsBranchingFurtherFromWestNode.Where(x => x.EndReached).ToList();
+
+            if (pathsThatReachedTheEndGoingWest.Any())
+            {
+                var shortestDistanceTowardsWest = pathsThatReachedTheEndGoingWest.Min(x => x.NodesInPath.Count);
+
+                var shortestPathTowardsWest =
+                    pathsThatReachedTheEndGoingWest.FirstOrDefault(x =>
+                        x.NodesInPath.Count == shortestDistanceTowardsWest);
+
+                pathsReachingTheEnd.Add(shortestPathTowardsWest);
+            }
+        }
+
+        if (node.CouldVisit(node.North, path, _globallyVisitedTiles))
+        {
+            logger.WriteLine($"Starting from  [{node.X},{node.Y}] can go to NORTH [{node.North.X},{node.North.Y}]");
+
+            // create a new path that will now also additionally include the east node  
+            var pathIncludingTheNorthNode = new Path(path, node.North, node);
+
+            // traverse that potential path
+            var pathsBranchingFurtherFromNorthNode = GetPaths(pathIncludingTheNorthNode, logger);
+
+            var pathsThatReachedTheEndGoingNorth = pathsBranchingFurtherFromNorthNode.Where(x => x.EndReached).ToList();
+
+            if (pathsThatReachedTheEndGoingNorth.Any())
+            {
+                var shortestDistanceTowardsNorth = pathsThatReachedTheEndGoingNorth.Min(x => x.NodesInPath.Count);
+
+                var shortestPathTowardsNorth =
+                    pathsThatReachedTheEndGoingNorth.FirstOrDefault(x =>
+                        x.NodesInPath.Count == shortestDistanceTowardsNorth);
+
+                pathsReachingTheEnd.Add(shortestPathTowardsNorth);
+            }
+        }
+
+        if (node.CouldVisit(node.South, path, _globallyVisitedTiles))
+        {
+            logger.WriteLine($"Starting from  [{node.X},{node.Y}] can go to SOUTH [{node.South.X},{node.South.Y}]");
+            // create a new path that will now also additionally include the east node  
+            var pathIncludingTheSouthNode = new Path(path, node.South, node);
+
+            // traverse that potential path
+            var pathsBranchingFurtherFromSouthNode = GetPaths(pathIncludingTheSouthNode, logger);
+
+            var pathsThatReachedTheEndGoingSouth = pathsBranchingFurtherFromSouthNode.Where(x => x.EndReached).ToList();
+
+            if (pathsThatReachedTheEndGoingSouth.Any())
+            {
+                var shortestDistanceTowardsSouth = pathsThatReachedTheEndGoingSouth.Min(x => x.NodesInPath.Count);
+
+                var shortestPathTowardsSouth =
+                    pathsThatReachedTheEndGoingSouth.FirstOrDefault(x =>
+                        x.NodesInPath.Count == shortestDistanceTowardsSouth);
+
+                pathsReachingTheEnd.Add(shortestPathTowardsSouth);
+            }
+        }
+
+        return pathsReachingTheEnd;
     }
 
     public override ValueTask<string> Solve_2()
@@ -183,14 +367,26 @@ public class Day12 : BaseDay
         return new("Solution");
     }
 
-    private void PrintCurrentMap(LogWrapper wrapper, bool showPlayerAndEnd)
+    private void PrintCurrentMap(LogWrapper wrapper, bool showPlayerAndEnd = false, bool showCosts = false)
     {
         for (int i = 0; i < _rows; i++)
         {
             for (int j = 0; j < _columns; j++)
             {
                 var tile = _map[i, j];
-                if (tile.ContainsMe)
+
+                if (showCosts)
+                {
+                    wrapper.Write($" [{tile.Cost}] ");
+                    if (tile.Cost.ToString().Length == 1)
+                    {
+                        wrapper.Write(" ");
+                    }
+
+                    continue;
+                }
+
+                if (tile.ContainsMe && showPlayerAndEnd)
                 {
                     wrapper.Write("P");
                     continue;
