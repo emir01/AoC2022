@@ -118,11 +118,13 @@ public class Day12 : BaseDay
     private int _rows;
     private int _columns;
 
-    private (int x, int y) startCoordinates = (0, 0);
+    private (int x, int y) originalStartCoords = (0, 0);
 
     private (int x, int y) endCoordinates = (0, 0);
 
     private long _nodesVisited = 0;
+
+    private List<Node> _lowNodes = new List<Node>();
 
     public Day12()
     {
@@ -139,11 +141,30 @@ public class Day12 : BaseDay
     public override ValueTask<string> Solve_2()
     {
         // process the input string
-        var logger = new LogWrapper(false);
+        var logger = new LogWrapper();
 
         logger.WriteLine("===== PART 2 =====");
 
-        return new("Solution");
+        // PrintCurrentMap(logger, true, true);
+
+        var pathValues = new List<int>();
+
+        foreach (var lowNode in _lowNodes)
+        {
+            var path = GetPathFromStartNode(lowNode);
+
+            if (path.Count > 0)
+            {
+                pathValues.Add(path.Count - 1);
+            }
+
+            logger.WriteLine($"Calculated path from Start Node: [{lowNode.X},{lowNode.Y}] with Steps:{path.Count - 1}");
+        }
+
+
+        var minPath = pathValues.Min();
+
+        return new(minPath.ToString());
     }
 
     public override ValueTask<string> Solve_1()
@@ -155,10 +176,15 @@ public class Day12 : BaseDay
 
         // PrintCurrentMap(logger, true, true);
 
-        var startNode = _map[startCoordinates.x, startCoordinates.y];
+        var startNode = _map[originalStartCoords.x, originalStartCoords.y];
 
-        logger.WriteLine($"End Coordinates: {endCoordinates}");
+        var pathFromEnd = GetPathFromStartNode(startNode);
 
+        return new((pathFromEnd.Count - 1).ToString());
+    }
+
+    private static List<Node> GetPathFromStartNode(Node startNode)
+    {
         var frontier = new Queue<Node>();
         var visited = new Dictionary<Node, Node>();
 
@@ -208,8 +234,7 @@ public class Day12 : BaseDay
             }
         }
 
-
-        return new((pathFromEnd.Count - 1).ToString());
+        return pathFromEnd;
     }
 
     private void CreateMap()
@@ -226,43 +251,48 @@ public class Day12 : BaseDay
             {
                 var currentTileValue = line[j].ToString();
 
-                var tile = new Node(i, j, currentTileValue);
+                var node = new Node(i, j, currentTileValue);
 
                 if (i > 0)
                 {
-                    tile.North = _map[i - 1, j];
+                    node.North = _map[i - 1, j];
                 }
 
                 if (i < _rows - 1)
                 {
-                    tile.South = _map[i + 1, j];
+                    node.South = _map[i + 1, j];
                 }
 
                 if (j > 0)
                 {
-                    tile.West = _map[i, j - 1];
+                    node.West = _map[i, j - 1];
                 }
 
                 if (j < _columns - 1)
                 {
-                    tile.East = _map[i, j + 1];
+                    node.East = _map[i, j + 1];
                 }
 
                 if (currentTileValue == "S")
                 {
                     // tile value is actually a
-                    tile.Value = "a";
-                    tile.ContainsMe = true;
-                    startCoordinates = (i, j);
+                    node.Value = "a";
+                    node.ContainsMe = true;
+                    originalStartCoords = (i, j);
                 }
                 else if (currentTileValue == "E")
                 {
-                    tile.Value = "z";
-                    tile.IsEnd = true;
+                    node.Value = "z";
+                    node.IsEnd = true;
                     endCoordinates = (i, j);
                 }
 
-                _map[i, j] = tile;
+                _map[i, j] = node;
+
+                if (node.Value.Equals("a"))
+                {
+                    _lowNodes.Add(node);
+                }
             }
         }
 
