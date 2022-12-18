@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Diagnostics;
 using System.Text.Json;
 using AdventOfCode.Utils;
@@ -6,41 +7,6 @@ namespace AdventOfCode;
 
 public class Day12 : BaseDay
 {
-    private class Path
-    {
-        public List<Node> NodesInPath { get; set; }
-
-        public bool EndReached { get; set; }
-
-        // Determines from which specific node this path was created
-        // Used to figure out where we came from and to not backtrack.
-        // Avoid situations: S -> EAST -> WEST (S)
-        public Node PathCreatedAtNode { get; set; }
-
-        public Path(Node node, Node pathCreatedAtNode = null)
-        {
-            PathCreatedAtNode = pathCreatedAtNode;
-            NodesInPath = new List<Node>();
-            NodesInPath.Add(node);
-        }
-
-        public Path(Path extendedOnThisPath, Node addedThisNode, Node pathCreatedAtNode)
-        {
-            PathCreatedAtNode = pathCreatedAtNode;
-            NodesInPath = new List<Node>();
-
-            NodesInPath.AddRange(extendedOnThisPath.NodesInPath);
-            NodesInPath.Add(addedThisNode);
-        }
-    }
-
-    private class VisitedNodeRecord
-    {
-        public Node VisitedNode { get; set; }
-
-        public int PathCountWhenVisited { get; set; }
-    }
-
     private class Node
     {
         public int X { get; set; }
@@ -83,37 +49,19 @@ public class Day12 : BaseDay
             return ((int)c) - 96;
         }
 
-        public bool CouldVisit(Node nodeToCheckIfCouldVisit, Path currentPath)
+        public bool CouldVisit(Node nodeToCheckIfCouldVisit)
         {
             if (nodeToCheckIfCouldVisit == null)
             {
                 return false;
             }
 
-            // prevents backtrack and cycle
-            if (currentPath.NodesInPath.Any(x => x == nodeToCheckIfCouldVisit))
-            {
-                return false;
-            }
-
-            // if we have visited the node we are checking previously we don't have to go down that path again
-            // as a route could already have been found.
-            // if (visitedTiles != null && visitedTiles.Any(x => x.VisitedNode == nodeToCheckIfCouldVisit))
-            // {
-            //     return false;
-            // }
-
             if (nodeToCheckIfCouldVisit.Cost <= Cost)
             {
                 return true;
             }
 
-            if (nodeToCheckIfCouldVisit.Cost - Cost > 1)
-            {
-                return false;
-            }
-
-            return true;
+            return nodeToCheckIfCouldVisit.Cost - Cost <= 1;
         }
 
         public int Heuristic(Node node, (int x, int y) coordinatesOfEndNode)
@@ -133,34 +81,32 @@ public class Day12 : BaseDay
             return xDiffTargetNode + yDiffTargetNode;
         }
 
-        public List<Node> GetPotentialVisitNodes(Path path, List<VisitedNodeRecord> globallyVisitedTiles)
+
+        public List<Node> VisitableNodes()
         {
-            var visitableNodes = new List<Node>();
-            if (CouldVisit(East, path))
+            var visitableNode = new List<Node>();
+
+            if (CouldVisit(East))
             {
-                //logger.WriteLine($"Starting from  [{X},{Y}] can go to EAST: [{East.X},{East.Y}]");
-                visitableNodes.Add(East);
+                visitableNode.Add(East);
             }
 
-            if (CouldVisit(West, path))
+            if (CouldVisit(West))
             {
-                //logger.WriteLine($"Starting from  [{X},{Y}] can go to EAST: [{East.X},{East.Y}]");
-                visitableNodes.Add(West);
+                visitableNode.Add(West);
             }
 
-            if (CouldVisit(North, path))
+            if (CouldVisit(North))
             {
-                //logger.WriteLine($"Starting from  [{X},{Y}] can go to EAST: [{East.X},{East.Y}]");
-                visitableNodes.Add(North);
+                visitableNode.Add(North);
             }
 
-            if (CouldVisit(South, path))
+            if (CouldVisit(South))
             {
-                //logger.WriteLine($"Starting from  [{X},{Y}] can go to EAST: [{East.X},{East.Y}]");
-                visitableNodes.Add(South);
+                visitableNode.Add(South);
             }
 
-            return visitableNodes;
+            return visitableNode;
         }
     }
 
@@ -168,12 +114,6 @@ public class Day12 : BaseDay
     private readonly List<string> _lines;
 
     private Node[,] _map;
-
-    // We have to keep track of all visited Tiles - but also the path when they were visited
-    // if on a next visit we are visiting with a lower cost path 
-    // we can continue down the node.
-    // otherwise there is no reason to check if our current path is longer in reaching that node.
-    private List<VisitedNodeRecord> _globallyVisitedTiles = new();
 
     private int _rows;
     private int _columns;
@@ -206,7 +146,6 @@ public class Day12 : BaseDay
         return new("Solution");
     }
 
-
     public override ValueTask<string> Solve_1()
     {
         // process the input string
@@ -220,139 +159,58 @@ public class Day12 : BaseDay
 
         logger.WriteLine($"End Coordinates: {endCoordinates}");
 
-        var pathStartingFromStartNode = new Path(startNode);
+        var frontier = new Queue<Node>();
+        var visited = new Dictionary<Node, Node>();
 
-        // return the paths from the starting node that reach the end.
-        // starting from a given node (let's say in the center) we can have up to 4 paths (E,W,N,S)
-        // that reach the end.
-        // Each of those could have a given number of nodes they travers
-        // solution will probably be to pick the lowest numbered traverse
-        var pathsToEnd = GetPaths(pathStartingFromStartNode, logger);
+        frontier.Enqueue(startNode);
+        visited[startNode] = null;
 
-        foreach (var path in pathsToEnd)
+        Node endNode = null;
+
+        // while we have frontier nodes
+        while (frontier.TryPeek(out _))
         {
-            logger.WriteLine(
-                $"There is a Path from the Start - First Heading Towards: [{path.NodesInPath[1].X}, {path.NodesInPath[1].Y}] that reaches the end in {path.NodesInPath.Count - 1} steps");
+            // get this current frontier node
+            var currentFrontierNode = frontier.Dequeue();
 
-            logger.WriteLine($"===  PRINTING PATH COORDS ====");
-
-            for (int i = 0; i < path.NodesInPath.Count; i++)
+            // check if this is the end node
+            if (currentFrontierNode.IsEnd)
             {
-                logger.WriteLine($"[{path.NodesInPath[i].X},{path.NodesInPath[i].Y}]");
-            }
-        }
-
-        var bestPathNodeCount = pathsToEnd.Min(x => x.NodesInPath.Count);
-
-        var bestPath = pathsToEnd.FirstOrDefault(x => x.NodesInPath.Count == bestPathNodeCount);
-
-        var solution = "Solution";
-        if (bestPath != null)
-        {
-            solution = (bestPath.NodesInPath.Count - 1).ToString();
-        }
-
-        return new(solution);
-    }
-
-    private List<Path> GetPaths(Path path, LogWrapper logger)
-    {
-        // the last node in the current path
-        // we inspect all the paths that can originate from this node
-        var node = path.NodesInPath.Last();
-        _nodesVisited++;
-
-
-        var pathsReachingTheEnd = new List<Path>();
-
-        // hitting the node for the first time
-        var previousNodeVisit = _globallyVisitedTiles.FirstOrDefault(x => x.VisitedNode == node);
-        if (previousNodeVisit == null)
-        {
-            _globallyVisitedTiles.Add(new VisitedNodeRecord()
-            {
-                VisitedNode = node,
-                PathCountWhenVisited = path.NodesInPath.Count
-            });
-        }
-        else
-        {
-            // we have visited this node before with some path which had lower cost
-            // from our current. Our current can never be better starting from that same node
-            if (previousNodeVisit.PathCountWhenVisited < path.NodesInPath.Count)
-            {
-                // so we don't have to process further
-                logger.WriteLine($"Stopping As Node Seen with better cost");
-                return pathsReachingTheEnd;
-            }
-
-            // if our current path is better up to the point we replace visited record and continue exploring
-            _globallyVisitedTiles.Remove(previousNodeVisit);
-            _globallyVisitedTiles.Add(new VisitedNodeRecord()
-            {
-                VisitedNode = node,
-                PathCountWhenVisited = path.NodesInPath.Count
-            });
-        }
-
-        // if this last node is an end node 
-        // we don't have to explore further so we return the List with a single path:the current one
-        if (node.IsEnd)
-        {
-            path.EndReached = true;
-            pathsReachingTheEnd.Add(path);
-            return pathsReachingTheEnd;
-        }
-
-        // we are now going to check if our current node can expand in any direction
-        // to somehow reach the end
-
-        // ===== NOTE: It might be good to determine which paths we can go to here that have some benefit
-        // Also this can all be merged to find the nodes to visit and do a quick iteration 
-        // instead of treating each one individually.
-
-        var visitableNodes = node.GetPotentialVisitNodes(path, _globallyVisitedTiles);
-
-        // we have to sort the visitable nodes by some score - 
-        // how close they get us to the goal ?
-        visitableNodes = visitableNodes.OrderBy(x => x.Heuristic(node, endCoordinates)).ToList();
-
-        logger.WriteLine($"Looking at Node: [{node.X},{node.Y}]({node.Value})  with Count Visited: {_nodesVisited}");
-
-        logger.WriteLine(
-            "Ordered Visitable Nodes: " +
-            $"{JsonSerializer.Serialize(visitableNodes.Select(visNode => new { visNode.X, visNode.Y, Heur = visNode.Heuristic(node, endCoordinates) }))}");
-
-
-        logger.WriteLine("----");
-
-        foreach (var visitableNode in visitableNodes)
-        {
-            var pathIncludingTheNewVisitableNode = new Path(path, visitableNode, node);
-
-            // traverse that potential path
-            var pathsBranchingFurtherFromEastNode = GetPaths(pathIncludingTheNewVisitableNode, logger);
-
-            var pathsThatReachEndStartingFromThisVisitableNode =
-                pathsBranchingFurtherFromEastNode.Where(x => x.EndReached).ToList();
-
-            if (pathsThatReachEndStartingFromThisVisitableNode.Any())
-            {
-                var shortestDistanceTowardsEast =
-                    pathsThatReachEndStartingFromThisVisitableNode.Min(x => x.NodesInPath.Count);
-
-                var shortestPathTowardsEast =
-                    pathsThatReachEndStartingFromThisVisitableNode.FirstOrDefault(x =>
-                        x.NodesInPath.Count == shortestDistanceTowardsEast);
-
-                pathsReachingTheEnd.Add(shortestPathTowardsEast);
+                endNode = currentFrontierNode;
                 break;
             }
+
+            var visitableNodes = currentFrontierNode.VisitableNodes();
+
+            foreach (var node in visitableNodes)
+            {
+                if (!visited.ContainsKey(node))
+                {
+                    frontier.Enqueue(node);
+
+
+                    visited.Add(node, currentFrontierNode);
+                }
+            }
         }
 
-        return pathsReachingTheEnd;
-    }
+        var pathFromEnd = new List<Node>();
 
+        if (endNode != null)
+        {
+            var currentNode = endNode;
+            pathFromEnd.Add(currentNode);
+
+            while (visited.ContainsKey(currentNode) && visited[currentNode] != null)
+            {
+                pathFromEnd.Add(visited[currentNode]);
+                currentNode = visited[currentNode];
+            }
+        }
+
+
+        return new((pathFromEnd.Count - 1).ToString());
+    }
 
     private void CreateMap()
     {
