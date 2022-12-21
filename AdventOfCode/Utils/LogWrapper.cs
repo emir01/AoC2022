@@ -6,13 +6,16 @@ namespace AdventOfCode.Utils;
 public class LogWrapper
 {
     private bool _logState = true;
+    private readonly bool _waitForInput;
 
-    public LogWrapper(bool logState = true)
+    public LogWrapper(bool logState = true, bool waitForInput = false)
     {
         _logState = logState;
+        _waitForInput = waitForInput;
     }
 
     public int Delay { get; set; }
+
 
     public void WriteLine(string message)
     {
@@ -23,6 +26,11 @@ public class LogWrapper
             if (Delay > 0)
             {
                 Thread.Sleep(Delay);
+            }
+
+            if (_waitForInput)
+            {
+                Console.ReadLine();
             }
         }
     }
@@ -37,6 +45,11 @@ public class LogWrapper
             {
                 Thread.Sleep(Delay);
             }
+
+            if (_waitForInput)
+            {
+                Console.ReadLine();
+            }
         }
     }
 
@@ -49,6 +62,11 @@ public class LogWrapper
             if (Delay > 0)
             {
                 Thread.Sleep(Delay);
+            }
+
+            if (_waitForInput)
+            {
+                Console.ReadLine();
             }
         }
     }
