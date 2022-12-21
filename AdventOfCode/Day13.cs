@@ -270,6 +270,11 @@ public class Day13 : BaseDay
                 }
             }
 
+            if (rightPacketElementAsArray.Value.TryPeek(out PacketElement _))
+            {
+                return CompareStatus.BAD;
+            }
+
             return packetElementsAreComparable;
         }
 
