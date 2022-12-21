@@ -2,6 +2,7 @@ using System.Collections;
 using System.Net.Mime;
 using System.Text.Json;
 using AdventOfCode.Utils;
+using Spectre.Console;
 
 namespace AdventOfCode;
 
@@ -108,7 +109,7 @@ public class Day13 : BaseDay
                     }
                 }
 
-                return new ArrayPacketElement(topSplits);
+                return new ArrayElement(topSplits);
             }
             else
             {
@@ -119,9 +120,9 @@ public class Day13 : BaseDay
         }
     }
 
-    private class ArrayPacketElement : PacketElement
+    private class ArrayElement : PacketElement
     {
-        public ArrayPacketElement(IList<string> elements)
+        public ArrayElement(IList<string> elements)
         {
             Value = new List<PacketElement>();
 
@@ -142,6 +143,14 @@ public class Day13 : BaseDay
         }
 
         public int Value { get; set; }
+
+        public ArrayElement ToArrayElement()
+        {
+            return new ArrayElement(new List<string>()
+            {
+                Value.ToString()
+            });
+        }
     }
 
 
@@ -177,7 +186,86 @@ public class Day13 : BaseDay
 
         logger.WriteLine("===== PART 1 =====");
 
+        foreach (var packetPair in _message.PacketPairs)
+        {
+            Console.WriteLine("====================");
+            Console.WriteLine($"LEFT: {JsonSerializer.Serialize(packetPair.Left)}");
+            Console.WriteLine($"RIGHT: {JsonSerializer.Serialize(packetPair.Right)}");
+        }
+
+        List<int> validPairIndexes = new List<int>();
+
+        // Do the message comparison
+        foreach (var packetPair in _message.PacketPairs)
+        {
+            // compare elements in each pair
+            var left = packetPair.Left;
+            var right = packetPair.Right;
+
+            // start comparing the top elements
+
+            // start comparing the two Lists
+            if (ComparePacketElements(left.PacketElement, right.PacketElement))
+            {
+                validPairIndexes.Add(_message.PacketPairs.IndexOf(packetPair) + 1);
+            }
+        }
+
+        logger.WriteLine($"Valid Pair Indexes: {JsonSerializer.Serialize(validPairIndexes)}");
+
         return new("");
+    }
+
+    private bool ComparePacketElements(PacketElement leftPacketElement, PacketElement rightPacketElement)
+    {
+        if (leftPacketElement is NumberElement leftPacketElementAsNumber &&
+            rightPacketElement is NumberElement rightPacketElementAsNumber)
+        {
+            return leftPacketElementAsNumber.Value <= rightPacketElementAsNumber.Value;
+        }
+
+        if (leftPacketElement is ArrayElement leftPacketElementAsArray &&
+            rightPacketElement is ArrayElement rightPacketElementAsArray)
+        {
+            bool packetElementsAreComparable = true;
+
+            for (var i = 0; i < leftPacketElementAsArray.Value.Count; i++)
+            {
+                var left = leftPacketElementAsArray.Value[i];
+
+                if (rightPacketElementAsArray.Value.Count - 1 < i)
+                {
+                    return true;
+                }
+
+                var right = rightPacketElementAsArray.Value[i];
+
+                packetElementsAreComparable = ComparePacketElements(left, right);
+
+                if (!packetElementsAreComparable)
+                {
+                    break;
+                }
+            }
+
+            return packetElementsAreComparable;
+        }
+
+        if (leftPacketElement is NumberElement leftNumber)
+        {
+            ArrayElement castedLeft = leftNumber.ToArrayElement();
+
+            return ComparePacketElements(castedLeft, rightPacketElement);
+        }
+
+        if (rightPacketElement is NumberElement rightNumber)
+        {
+            ArrayElement castedRight = rightNumber.ToArrayElement();
+
+            return ComparePacketElements(leftPacketElement, castedRight);
+        }
+
+        return false;
     }
 
     public override ValueTask<string> Solve_2()
