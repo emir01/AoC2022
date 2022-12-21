@@ -190,15 +190,9 @@ public class Day13 : BaseDay
     {
         // process the input string
         var logger = new LogWrapper();
+        logger.Delay = 0;
 
         logger.WriteLine("===== PART 1 =====");
-
-        foreach (var packetPair in _message.PacketPairs)
-        {
-            Console.WriteLine("====================");
-            Console.WriteLine($"LEFT: {JsonSerializer.Serialize(packetPair.Left)}");
-            Console.WriteLine($"RIGHT: {JsonSerializer.Serialize(packetPair.Right)}");
-        }
 
         List<int> validPairIndexes = new List<int>();
 
@@ -212,7 +206,7 @@ public class Day13 : BaseDay
             // start comparing the top elements
 
             // start comparing the two Lists
-            if (ComparePacketElements(left.PacketElement, right.PacketElement) == CompareStatus.VALID)
+            if (ComparePacketElements(left.PacketElement, right.PacketElement, logger) == CompareStatus.VALID)
             {
                 validPairIndexes.Add(_message.PacketPairs.IndexOf(packetPair) + 1);
             }
@@ -223,73 +217,102 @@ public class Day13 : BaseDay
         return new(validPairIndexes.Sum().ToString());
     }
 
-    private CompareStatus ComparePacketElements(PacketElement leftPacketElement, PacketElement rightPacketElement)
+    private CompareStatus ComparePacketElements(PacketElement leftPacketElement, PacketElement rightPacketElement,
+        LogWrapper logger)
     {
+        logger.WriteLine("======= Comparing Packet Elements =======");
+
         if (leftPacketElement is NumberElement leftPacketElementAsNumber &&
             rightPacketElement is NumberElement rightPacketElementAsNumber)
         {
+            logger.WriteLine(
+                $"Comparing two Number Elements: " +
+                $"Left: {leftPacketElementAsNumber.Value} -- " +
+                $"Right: {rightPacketElementAsNumber.Value}");
+
             if (leftPacketElementAsNumber.Value < rightPacketElementAsNumber.Value)
             {
+                logger.WriteLine($"Left SMALLER than Right - Returning VALID");
                 return CompareStatus.VALID;
             }
 
             if (leftPacketElementAsNumber.Value == rightPacketElementAsNumber.Value)
             {
+                logger.WriteLine($"Left EQUALS Right - Returning EQUAL");
                 return CompareStatus.EQUAL;
             }
 
+            logger.WriteLine($"Left GREATER than Right - Returning BAD");
             return CompareStatus.BAD;
         }
 
         if (leftPacketElement is ArrayElement leftPacketElementAsArray &&
             rightPacketElement is ArrayElement rightPacketElementAsArray)
         {
-            CompareStatus packetElementsAreComparable = CompareStatus.VALID;
+            logger.WriteLine($"Comparing TWO Array Elements");
 
             // while The Left Element Has 
             while (leftPacketElementAsArray.Value.TryDequeue(out PacketElement left))
             {
+                logger.WriteLine($"Dequeued Left Array Object");
                 if (rightPacketElementAsArray.Value.TryDequeue(out PacketElement right))
                 {
-                    var compareResult = ComparePacketElements(left, right);
+                    logger.WriteLine($"Dequeued Right Array Object and Comparing Results");
+
+                    var compareResult = ComparePacketElements(left, right, logger);
 
                     if (compareResult == CompareStatus.BAD)
                     {
-                        packetElementsAreComparable = CompareStatus.BAD;
-                        break;
+                        logger.WriteLine($"TWO Array Elements NOT VALID");
+                        return CompareStatus.BAD;
                     }
 
                     if (compareResult == CompareStatus.VALID)
                     {
+                        logger.WriteLine($"TWO Array Elements VALID");
                         return CompareStatus.VALID;
                     }
                 }
                 else
                 {
-                    packetElementsAreComparable = CompareStatus.BAD;
+                    logger.WriteLine(
+                        $"Right Array did not Have Object to Return " +
+                        $"- Right Array Ran out Of Items Before Left: BAD");
+                    return CompareStatus.BAD;
                 }
             }
 
-            if (rightPacketElementAsArray.Value.TryPeek(out PacketElement _))
-            {
-                return CompareStatus.BAD;
-            }
+            logger.WriteLine($"Finished Fully De-Queueing LEFT Array - Checking If Right Still Has Elements");
 
-            return packetElementsAreComparable;
+            if (rightPacketElementAsArray.Value.Count > 0)
+            {
+                logger.WriteLine($"RIGHT - Still HAD ELEMENTS - Returning Valid");
+                return CompareStatus.VALID;
+            }
+            else
+            {
+                logger.WriteLine($"BOTH LEFT and RIGHT EXHAUSTED - Returning EQUAL");
+                return CompareStatus.EQUAL;
+            }
         }
+
+        logger.WriteLine($"Comparing one ARRAY and one NUMBER element");
 
         if (leftPacketElement is NumberElement leftNumber)
         {
             ArrayElement castedLeft = leftNumber.ToArrayElement();
 
-            return ComparePacketElements(castedLeft, rightPacketElement);
+            logger.WriteLine($"CASTED Left Element as ARRAY - Comparing LEFT and RIGHT as BOTH Arrays");
+
+            return ComparePacketElements(castedLeft, rightPacketElement, logger);
         }
 
         if (rightPacketElement is NumberElement rightNumber)
         {
             ArrayElement castedRight = rightNumber.ToArrayElement();
 
-            return ComparePacketElements(leftPacketElement, castedRight);
+            logger.WriteLine($"CASTED Right Element as ARRAY - Comparing LEFT and RIGHT as BOTH Arrays");
+            return ComparePacketElements(leftPacketElement, castedRight, logger);
         }
 
         return CompareStatus.BAD;

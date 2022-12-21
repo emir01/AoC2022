@@ -12,11 +12,18 @@ public class LogWrapper
         _logState = logState;
     }
 
+    public int Delay { get; set; }
+
     public void WriteLine(string message)
     {
         if (_logState)
         {
             Console.WriteLine(message);
+
+            if (Delay > 0)
+            {
+                Thread.Sleep(Delay);
+            }
         }
     }
 
@@ -25,14 +32,24 @@ public class LogWrapper
         if (_logState)
         {
             Console.Write(message);
+
+            if (Delay > 0)
+            {
+                Thread.Sleep(Delay);
+            }
         }
     }
-    
+
     public void Write(object message)
     {
         if (_logState)
         {
             Console.Write(message);
+
+            if (Delay > 0)
+            {
+                Thread.Sleep(Delay);
+            }
         }
     }
 }
