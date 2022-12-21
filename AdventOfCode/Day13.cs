@@ -11,6 +11,13 @@ public class Day13 : BaseDay
     private readonly string _input;
     private readonly List<string> _lines;
 
+    private enum CompareStatus
+    {
+        VALID,
+        EQUAL,
+        BAD
+    }
+
     private class Message
     {
         public List<PacketPair> PacketPairs;
@@ -124,15 +131,15 @@ public class Day13 : BaseDay
     {
         public ArrayElement(IList<string> elements)
         {
-            Value = new List<PacketElement>();
+            Value = new Queue<PacketElement>();
 
             foreach (var element in elements)
             {
-                Value.Add(GetPacketElement(element));
+                Value.Enqueue(GetPacketElement(element));
             }
         }
 
-        public List<PacketElement> Value { get; set; }
+        public Queue<PacketElement> Value { get; set; }
     }
 
     private class NumberElement : PacketElement
@@ -205,7 +212,7 @@ public class Day13 : BaseDay
             // start comparing the top elements
 
             // start comparing the two Lists
-            if (ComparePacketElements(left.PacketElement, right.PacketElement))
+            if (ComparePacketElements(left.PacketElement, right.PacketElement) == CompareStatus.VALID)
             {
                 validPairIndexes.Add(_message.PacketPairs.IndexOf(packetPair) + 1);
             }
@@ -213,38 +220,53 @@ public class Day13 : BaseDay
 
         logger.WriteLine($"Valid Pair Indexes: {JsonSerializer.Serialize(validPairIndexes)}");
 
-        return new("");
+        return new(validPairIndexes.Sum().ToString());
     }
 
-    private bool ComparePacketElements(PacketElement leftPacketElement, PacketElement rightPacketElement)
+    private CompareStatus ComparePacketElements(PacketElement leftPacketElement, PacketElement rightPacketElement)
     {
         if (leftPacketElement is NumberElement leftPacketElementAsNumber &&
             rightPacketElement is NumberElement rightPacketElementAsNumber)
         {
-            return leftPacketElementAsNumber.Value <= rightPacketElementAsNumber.Value;
+            if (leftPacketElementAsNumber.Value < rightPacketElementAsNumber.Value)
+            {
+                return CompareStatus.VALID;
+            }
+
+            if (leftPacketElementAsNumber.Value == rightPacketElementAsNumber.Value)
+            {
+                return CompareStatus.EQUAL;
+            }
+
+            return CompareStatus.BAD;
         }
 
         if (leftPacketElement is ArrayElement leftPacketElementAsArray &&
             rightPacketElement is ArrayElement rightPacketElementAsArray)
         {
-            bool packetElementsAreComparable = true;
+            CompareStatus packetElementsAreComparable = CompareStatus.VALID;
 
-            for (var i = 0; i < leftPacketElementAsArray.Value.Count; i++)
+            // while The Left Element Has 
+            while (leftPacketElementAsArray.Value.TryDequeue(out PacketElement left))
             {
-                var left = leftPacketElementAsArray.Value[i];
-
-                if (rightPacketElementAsArray.Value.Count - 1 < i)
+                if (rightPacketElementAsArray.Value.TryDequeue(out PacketElement right))
                 {
-                    return true;
+                    var compareResult = ComparePacketElements(left, right);
+
+                    if (compareResult == CompareStatus.BAD)
+                    {
+                        packetElementsAreComparable = CompareStatus.BAD;
+                        break;
+                    }
+
+                    if (compareResult == CompareStatus.VALID)
+                    {
+                        return CompareStatus.VALID;
+                    }
                 }
-
-                var right = rightPacketElementAsArray.Value[i];
-
-                packetElementsAreComparable = ComparePacketElements(left, right);
-
-                if (!packetElementsAreComparable)
+                else
                 {
-                    break;
+                    packetElementsAreComparable = CompareStatus.BAD;
                 }
             }
 
@@ -265,7 +287,7 @@ public class Day13 : BaseDay
             return ComparePacketElements(leftPacketElement, castedRight);
         }
 
-        return false;
+        return CompareStatus.BAD;
     }
 
     public override ValueTask<string> Solve_2()

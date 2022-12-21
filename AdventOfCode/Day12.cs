@@ -120,10 +120,6 @@ public class Day12 : BaseDay
 
     private (int x, int y) originalStartCoords = (0, 0);
 
-    private (int x, int y) endCoordinates = (0, 0);
-
-    private long _nodesVisited = 0;
-
     private List<Node> _lowNodes = new List<Node>();
 
     public Day12()
@@ -284,7 +280,6 @@ public class Day12 : BaseDay
                 {
                     node.Value = "z";
                     node.IsEnd = true;
-                    endCoordinates = (i, j);
                 }
 
                 _map[i, j] = node;
